@@ -1,0 +1,62 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+lib/
+
+# C extensions
+*.so
+
+# Virtual Environments
+venv/
+env/
+.venv/
+myenv/
+
+# Packages
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+var/
+sdist/
+wheels/
+*.egg-info/
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Pytest cache
+.pytest_cache/
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# VSCode settings
+.vscode/
+
+# MacOS files
+.DS_Store
+
+# Streamlit's generated files
+.streamlit/
+
+# Temporary files
+*.tmp
+*.log
+
+# PyVis temporary HTML files
+temp_graph.html
+
+# Graphviz output (optional)
+*.gv
+*.dot.pdf
+*.dot.png
