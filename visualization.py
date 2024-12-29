@@ -1,87 +1,65 @@
 import networkx as nx
-import plotly.graph_objs as go
+from pyvis.network import Network
 import logging
 
 logger = logging.getLogger(__name__)
 
-def visualize_dag_with_plotly(G: nx.DiGraph, positions=None):
+def visualize_dag_with_pyvis(G: nx.DiGraph, height="500px", width="600px"):
     """
-    Visualize a NetworkX DiGraph using Plotly and return the figure.
-    If 'positions' is provided, it should be a dict: {node: (x, y), ...}.
+    Visualize a NetworkX DiGraph using PyVis and return the HTML as a string.
+    We'll:
+      - Use a Barnes-Hut layout
+      - Mark edges as directed with arrowheads
+      - Style nodes/edges for a professional black/white scheme
+      - Provide "physics" controls
     """
     try:
-        logger.debug("Initializing Plotly network visualization.")
+        logger.debug("Initializing PyVis network visualization (directed).")
 
-        # If we haven't been given positions, generate them with spring_layout
-        if positions is None:
-            positions = nx.spring_layout(G, seed=42)
+        net = Network(
+            height=height,
+            width=width,
+            directed=True,
+            notebook=False
+        )
+        net.from_nx(G)
 
-        edge_x = []
-        edge_y = []
-        for edge in G.edges():
-            x0, y0 = positions[edge[0]]
-            x1, y1 = positions[edge[1]]
-            edge_x.extend([x0, x1, None])
-            edge_y.extend([y0, y1, None])
+        # Style nodes
+        for node in net.nodes:
+            node["shape"] = "circle"
+            node["color"] = {
+                "border": "black",
+                "background": "white",
+                "highlight": {
+                    "border": "black",
+                    "background": "#e5e5e5"
+                }
+            }
+            node["borderWidth"] = 2
+            node["borderWidthSelected"] = 4
+            node["font"] = {
+                "size": 18,
+                "color": "black",
+                "face": "arial",
+            }
 
-        edge_trace = go.Scatter(
-            x=edge_x,
-            y=edge_y,
-            line=dict(width=1, color='#888'),
-            hoverinfo='none',
-            mode='lines'
+        # Style edges
+        for edge in net.edges:
+            edge["arrows"] = "to"
+            edge["color"] = "black"
+            edge["width"] = 2
+
+        net.barnes_hut(
+            central_gravity=0.0,
+            spring_length=200,
+            spring_strength=0.05,
+            damping=0.09,
+            overlap=0
         )
 
-        node_x = []
-        node_y = []
-        text_labels = []
-        for node in G.nodes():
-            x, y = positions[node]
-            node_x.append(x)
-            node_y.append(y)
-            text_labels.append(str(node))
-
-        node_trace = go.Scatter(
-            x=node_x,
-            y=node_y,
-            mode='markers+text',
-            text=text_labels,
-            textposition="bottom center",
-            hoverinfo='text',
-            marker=dict(
-                showscale=False,
-                color='lightblue',
-                size=20,
-                line_width=2
-            )
-        )
-
-        fig = go.Figure(data=[edge_trace, node_trace],
-            layout=go.Layout(
-                title='<br>Causal DAG',
-                titlefont_size=16,
-                showlegend=False,
-                hovermode='closest',
-                margin=dict(b=20, l=5, r=5, t=40),
-                annotations=[dict(
-                    text="",
-                    showarrow=False,
-                    xref="paper",
-                    yref="paper"
-                )],
-                xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-                yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)
-            )
-        )
-
-        fig.update_layout(
-            plot_bgcolor='white',
-            paper_bgcolor='white'
-        )
-
-        logger.debug("Plotly figure created successfully.")
-        return fig
+        html_str = net.generate_html(notebook=False)
+        return html_str
 
     except Exception as e:
-        logger.exception(f"Error during Plotly visualization: {e}")
-        return None
+        logger.exception(f"Error during PyVis visualization: {e}")
+        return f"<p>Error rendering PyVis graph: {e}</p>"

@@ -29,7 +29,6 @@ def load_dag_from_file(file):
             temp_filepath = tmp_file.name
             logger.debug(f"Temporary DOT file created at: {temp_filepath}")
 
-        # Parse the DOT file using the file path
         G = read_dot(temp_filepath)
         DG = nx.DiGraph(G)
 
@@ -47,7 +46,6 @@ def load_dag_from_file(file):
         return None
 
     finally:
-        # Clean up the temporary file
         if 'temp_filepath' in locals() and os.path.exists(temp_filepath):
             os.remove(temp_filepath)
             logger.debug(f"Temporary DOT file {temp_filepath} deleted.")
@@ -65,11 +63,9 @@ def generate_dag_algorithm():
 
 def generate_dag_from_dataset(dataset_bytes):
     """
-    Example: generate a DAG from the provided dataset.
-    Replace this with your real logic as needed.
+    Example: generate a DAG from the provided dataset (placeholder logic).
     """
-    logger.debug("Generating DAG from dataset (placeholder logic).")
-    # For demonstration, we just create two nodes and one edge
+    logger.debug("Generating DAG from dataset (placeholder).")
     G = nx.DiGraph()
     G.add_nodes_from(["DatasetNode1", "DatasetNode2"])
     G.add_edge("DatasetNode1", "DatasetNode2")
