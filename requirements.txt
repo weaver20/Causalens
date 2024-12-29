@@ -1,0 +1,7 @@
+streamlit==1.20.0
+pyvis==0.1.8
+networkx==3.1
+pygraphviz==1.8
+pillow==9.5.0
+matplotlib==3.7.1
+plotly==5.15.0

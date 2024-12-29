@@ -1,15 +1,26 @@
 import networkx as nx
+import logging
+
+logger = logging.getLogger(__name__)
 
 def summarize_dag(original_dag: nx.DiGraph, size_constraint: int, semantic_threshold: float):
     """
     Summarize the DAG.
-    This is a placeholder for your actual summarization algorithm.
-    For now, we’ll just mock a smaller DAG by contracting nodes or picking a subset.
+    Placeholder for the actual summarization algorithm.
     """
-    # Mock summarized DAG: Combine A and B into A_B, keep C
-    # In reality, you’ll implement your causal DAG summarization logic here.
-    S = nx.DiGraph()
-    S.add_node("A_B")
-    S.add_node("C")
-    S.add_edge("A_B", "C")
-    return S
+    logger.debug(f"Starting DAG summarization with size_constraint={size_constraint}, semantic_threshold={semantic_threshold}")
+    try:
+        # Example summarization: select top 'size_constraint' nodes
+        S = nx.DiGraph()
+        nodes_to_include = list(original_dag.nodes)[:size_constraint]
+        S.add_nodes_from(nodes_to_include)
+        logger.debug(f"Nodes selected for summarization: {nodes_to_include}")
+        for node in nodes_to_include:
+            for neighbor in original_dag.successors(node):
+                if neighbor in nodes_to_include:
+                    S.add_edge(node, neighbor)
+        logger.info(f"DAG summarization completed. Summarized DAG has {S.number_of_nodes()} nodes and {S.number_of_edges()} edges.")
+        return S
+    except Exception as e:
+        logger.exception(f"Error during DAG summarization: {e}")
+        raise e
