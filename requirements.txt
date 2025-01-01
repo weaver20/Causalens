@@ -1,4 +1,4 @@
-streamlit==1.20.0
+streamlit==1.25.0
 pyvis==0.1.8
 networkx==3.1
 pygraphviz==1.8

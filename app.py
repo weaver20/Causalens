@@ -2,18 +2,30 @@ import streamlit as st
 import networkx as nx
 import logging
 import streamlit.components.v1 as components
+import pandas as pd
 
-# Local imports
+# Local modules
 from graph_utils import (
     load_dag_from_file,
     generate_dag_algorithm,
     generate_dag_from_dataset,
     is_valid_dag,
+    dict_of_dicts_to_numpy,
 )
+import graph_utils
 from summarization import summarize_dag
-from visualization import visualize_dag_with_pyvis
+from visualization import visualize_dag_with_pyvis, check_for_nonstring_attribute_keys
+from semantic_coloring import colorize_nodes_by_similarity
+import greedy 
+from Utils import ensure_string_labels
 
-# Configure logging
+
+# NEW: import from our new file
+from graph_ops import try_add_edge, try_remove_edge
+
+# ---------------------------------------------------------------------
+# Logging Configuration
+# ---------------------------------------------------------------------
 logging.basicConfig(
     filename='app.log',
     filemode='a',
@@ -22,181 +34,214 @@ logging.basicConfig(
 )
 logger = logging.getLogger()
 
-st.set_page_config(page_title="Causal DAG Summarization Tool", layout="wide")
+# ---------------------------------------------------------------------
+# Streamlit Page Config
+# ---------------------------------------------------------------------
+st.set_page_config(
+    page_title="Causal DAG Summarization Tool",
+    layout="wide"
+)
 
-# -----------------------------
-# Initialize session state
-# -----------------------------
-if "original_dag" not in st.session_state:
-    st.session_state.original_dag = None
-if "summarized_dag" not in st.session_state:
-    st.session_state.summarized_dag = None
-if "dataset" not in st.session_state:
-    st.session_state.dataset = None
-
-st.title("Causal DAG Summarization Tool")
-st.markdown("### A UI for Summarizing and Interacting with Causal DAGs")
-
-# -----------------------------
-# 1. Sidebar: Upload / Generate
-# -----------------------------
-with st.sidebar.expander("1. Upload or Generate DAG"):
-    dag_file = st.file_uploader("Upload Causal DAG File (.dot)", type=["dot"])
-    data_file = st.file_uploader("Upload Dataset File (optional):")
-
-    col_btns = st.columns([1,1])
-    with col_btns[0]:
-        generate_btn = st.button("Generate DAG")
-    with col_btns[1]:
-        reset_btn = st.button("Reset DAG")
-
-    if reset_btn:
+# ---------------------------------------------------------------------
+# Session State Initialization
+# ---------------------------------------------------------------------
+def initialize_session_state():
+    if "original_dag" not in st.session_state:
         st.session_state.original_dag = None
+    if "summarized_dag" not in st.session_state:
         st.session_state.summarized_dag = None
-        st.info("DAG has been reset.")
-        st.experimental_rerun()
+    if "dataset" not in st.session_state:
+        st.session_state.dataset = None
 
-    if st.session_state.original_dag is None:
-        # If no DAG in memory, see if user uploaded or wants to generate
-        if dag_file is not None:
-            loaded_dag = load_dag_from_file(dag_file)
-            if loaded_dag:
-                st.session_state.original_dag = loaded_dag
-                st.success("DAG uploaded successfully!")
-        elif data_file is not None and generate_btn:
-            st.session_state.dataset = data_file.getvalue()
-            new_dag = generate_dag_from_dataset(st.session_state.dataset)
-            st.session_state.original_dag = new_dag
-            st.success("DAG generated from dataset.")
-        elif generate_btn and data_file is None:
-            st.session_state.original_dag = generate_dag_algorithm()
-            st.success("Placeholder DAG generated.")
-    else:
-        st.info("A DAG is already loaded. Reset if you want a fresh one.")
+initialize_session_state()
 
-    if st.session_state.original_dag:
-        st.write("**Original DAG Nodes:**", list(st.session_state.original_dag.nodes))
-        st.write("**Original DAG Edges:**", list(st.session_state.original_dag.edges))
-
-# -----------------------------
-# 2. Sidebar: Configuration
-# -----------------------------
-with st.sidebar.expander("2. Configuration Parameters"):
-    size_constraint = st.number_input("Size Constraint:", min_value=1, value=10)
-    semantic_threshold = st.slider("Semantic Similarity Threshold:", 0.0, 1.0, 0.5, 0.05)
-
-# Summarization with caching
+# ---------------------------------------------------------------------
+# Summarize DAG (cached)
+# ---------------------------------------------------------------------
 @st.cache_data
-def cached_summarize_dag(original_dag, size_cons, sem_thresh):
-    return summarize_dag(original_dag, size_cons, sem_thresh)
+def cached_summarize_dag(dag, constraint, thresh):
+    return summarize_dag(dag, constraint, thresh)
 
-# -----------------------------
-# 3. Sidebar: Summarize DAG
-# -----------------------------
-with st.sidebar.expander("3. Summarize DAG"):
-    summ_btn = st.button("Summarize Data")
-    if summ_btn:
-        if st.session_state.original_dag is None:
-            st.warning("No DAG to summarize!")
-        else:
-            st.session_state.summarized_dag = cached_summarize_dag(
-                st.session_state.original_dag,
-                size_constraint,
-                semantic_threshold
-            )
-            st.success("DAG summarized!")
-            st.write("**Summarized DAG Nodes:**", list(st.session_state.summarized_dag.nodes))
-            st.write("**Summarized DAG Edges:**", list(st.session_state.summarized_dag.edges))
+# ---------------------------------------------------------------------
+# Sidebar Logic
+# ---------------------------------------------------------------------
+def display_sidebar():
+    with st.sidebar.expander("1. Upload or Generate DAG"):
+        dag_file = st.file_uploader("Upload Causal DAG File (.dot)", type=["dot"])
+        data_file = st.file_uploader("Upload Dataset File (optional):")
 
-# -----------------------------
-# 4. Sidebar: Compute Causal Effects
-# -----------------------------
-with st.sidebar.expander("4. Compute Causal Effects"):
-    if st.session_state.original_dag:
-        all_nodes = list(st.session_state.original_dag.nodes)
-        if len(all_nodes) < 2:
-            st.warning("Need at least two nodes to compute causal effects.")
-        else:
-            node1 = st.selectbox("Select Node 1:", all_nodes, key="node1")
-            node2 = st.selectbox("Select Node 2:", all_nodes, key="node2")
-            graph_choice = st.selectbox("Apply computation to:", ["Original Graph", "Summarized Graph"], key="graph_choice")
-            compute_effect = st.button("Compute Causal Effect")
-            if compute_effect:
-                chosen_graph = st.session_state.original_dag if graph_choice == "Original Graph" else st.session_state.summarized_dag
-                if chosen_graph:
-                    # Placeholder
-                    effect = 0.5
-                    st.write(f"Causal effect of {node1} on {node2} in {graph_choice}: {effect} (placeholder)")
-                else:
-                    st.error("Selected graph is not available.")
-    else:
-        st.info("No DAG to compute effects on.")
+        col_btns = st.columns([1,1])
+        with col_btns[0]:
+            gen_btn = st.button("Generate DAG")
+        with col_btns[1]:
+            reset_btn = st.button("Reset DAG")
 
-# -----------------------------
-# Main Page: 2 Columns
-# -----------------------------
-col1, col2 = st.columns([1,1])
-
-# Left Column: Original DAG
-with col1:
-    st.subheader("Original Causal DAG")
-    if st.session_state.original_dag:
-        if is_valid_dag(st.session_state.original_dag):
-            dag_html = visualize_dag_with_pyvis(
-                st.session_state.original_dag,
-                height="500px",
-                width="600px"
-            )
-            components.html(dag_html, height=520, scrolling=False)
-        else:
-            st.warning("Not a valid DAG.")
-    else:
-        st.info("No original DAG.")
-
-    # --- Expander for Edit Edges (with a pencil emoji)
-    with st.expander("✏️ Edit Edges in Original DAG"):
-        st.write("Add or remove edges by typing `Node1,Node2`. Then click **Apply**.")
-        add_edge_input = st.text_input("Add edge (format: Node1,Node2)", key="add_edge_input", value="")
-        remove_edge_input = st.text_input("Remove edge (format: Node1,Node2)", key="remove_edge_input", value="")
-        apply_edits_btn = st.button("Apply Changes to Original DAG")
-
-        if apply_edits_btn:
-            # Add edges
-            if add_edge_input.strip():
-                try:
-                    n1, n2 = [x.strip() for x in add_edge_input.split(",")]
-                    st.session_state.original_dag.add_edge(n1, n2)
-                    st.success(f"Edge ({n1} → {n2}) added.")
-                except Exception as e:
-                    st.error(f"Error adding edge: {e}")
-
-            # Remove edges
-            if remove_edge_input.strip():
-                try:
-                    n1, n2 = [x.strip() for x in remove_edge_input.split(",")]
-                    if st.session_state.original_dag.has_edge(n1, n2):
-                        st.session_state.original_dag.remove_edge(n1, n2)
-                        st.success(f"Edge ({n1} → {n2}) removed.")
-                    else:
-                        st.warning(f"Edge ({n1} → {n2}) does not exist.")
-                except Exception as e:
-                    st.error(f"Error removing edge: {e}")
-
-            # Force a re-run so the DAG re-renders
+        # Reset
+        if reset_btn:
+            st.session_state.original_dag = None
+            st.session_state.summarized_dag = None
+            st.info("DAG has been reset.")
             st.experimental_rerun()
 
-# Right Column: Summarized Graph
-with col2:
-    st.subheader("Summarized Graph")
-    if st.session_state.summarized_dag:
-        if is_valid_dag(st.session_state.summarized_dag):
-            summ_html = visualize_dag_with_pyvis(
-                st.session_state.summarized_dag,
-                height="500px",
-                width="600px"
-            )
-            components.html(summ_html, height=520, scrolling=False)
+        # If no DAG in memory, try loading or generating
+        if st.session_state.original_dag is None:
+            if dag_file is not None:
+                loaded_dag = load_dag_from_file(dag_file)
+                if loaded_dag:
+                    st.session_state.original_dag = loaded_dag
+                    st.success("DAG uploaded successfully!")
+            elif data_file is not None and gen_btn:
+                st.session_state.dataset = data_file.getvalue()
+                new_dag = generate_dag_from_dataset(st.session_state.dataset)
+                st.session_state.original_dag = new_dag
+                st.success("DAG generated from dataset.")
+            elif gen_btn and data_file is None:
+                st.session_state.original_dag = generate_dag_algorithm()
+                st.success("Placeholder DAG generated.")
         else:
-            st.warning("The summarized graph is not a valid DAG.")
-    else:
-        st.info("No summarized DAG available yet.")
+            st.info("A DAG is already loaded. Click 'Reset DAG' to start fresh.")
+
+    with st.sidebar.expander("2. Configuration Parameters"):
+        st.session_state.size_constraint = st.number_input("Size Constraint:", min_value=1, value=10)
+        st.session_state.semantic_threshold = st.slider("Semantic Similarity Threshold:", 0.0, 1.0, 0.5, 0.05)
+
+    with st.sidebar.expander("3. Summarize DAG"):
+        summarize_button = st.button("Summarize Casual DAG")
+        if summarize_button:
+            if st.session_state.original_dag is None:
+                st.warning("Please provide or generate a DAG before summarizing.")
+            else:
+                with st.spinner("Summarizing DAG..."):
+                    original_dag = st.session_state.original_dag
+                    nodes_list = list(original_dag.nodes())
+                    k_value = 5 # For now it is hardcoded
+                    #similarity_mat= dict_of_dicts_to_numpy(colorize_nodes_by_similarity(nodes_list)[0])
+                    #similarity_df = pd.DataFrame(similarity_mat, index=nodes_list, columns=nodes_list)
+
+                    summary_dag = greedy.CaGreS(original_dag, 5)
+
+                    # Ensuring all edges, nodes in the graph contain only string attributes, whatever has non-string is being converted into string
+                    summary_dag = ensure_string_labels(summary_dag)
+                    graph_utils.fix_nested_keys_in_edge_attrs(summary_dag)
+
+                    st.session_state.summarized_dag = summary_dag
+                    st.success("DAG summarized successfully!")
+
+    with st.sidebar.expander("4. Compute Causal Effects (placeholder)"):
+        if st.session_state.original_dag:
+            node_list = list(st.session_state.original_dag.nodes())
+            if len(node_list) < 2:
+                st.warning("Need >=2 nodes to compute causal effects.")
+            else:
+                c1 = st.selectbox("Node 1:", node_list)
+                c2 = st.selectbox("Node 2:", node_list)
+                g_opt = st.selectbox("Compute on:", ["Original Graph","Summarized Graph"])
+                eff_btn = st.button("Compute Causal Effect")
+                if eff_btn:
+                    chosen = (st.session_state.original_dag
+                              if g_opt=="Original Graph"
+                              else st.session_state.summarized_dag)
+                    if chosen:
+                        st.write(f"Placeholder effect of {c1}->{c2} = 0.5")
+                    else:
+                        st.error("No summarized DAG available.")
+        else:
+            st.info("No original DAG for computing effects.")
+
+# ---------------------------------------------------------------------
+# Display a DAG Column (PyVis + optional Edit Expander)
+# ---------------------------------------------------------------------
+def display_dag_column(title: str, dag: nx.DiGraph, is_original: bool = True):
+    st.subheader(title)
+    if dag is None:
+        st.info(f"No {title.lower()} is currently available.")
+        return
+
+    #if not is_valid_dag(dag):
+    #    st.warning(f"The {title.lower()} is not a valid DAG.")
+    #    return
+
+    # colorize
+    node_list = list(dag.nodes())
+    _, _, color_map = colorize_nodes_by_similarity(node_list)
+
+    # visualize
+    modified_nodes_dag = ensure_string_labels(dag)
+    # debug
+    if not is_original:
+        check_for_nonstring_attribute_keys(modified_nodes_dag)
+    pyvis_dag = graph_utils.to_pyvis_compatible(modified_nodes_dag)
+    html_str = visualize_dag_with_pyvis(
+        G=pyvis_dag,
+        color_map=color_map,
+        height="600px",
+        width="100%"
+    )
+    components.html(html_str, height=620, scrolling=False)
+
+    # If it's the original DAG, allow editing
+    if is_original:
+        with st.expander("✏️ Edit Edges in Original DAG"):
+            st.write("Use `Node1,Node2` format for adding/removing edges, then click **Apply**.")
+            add_edge_txt = st.text_input("Add edge:", "")
+            remove_edge_txt = st.text_input("Remove edge:", "")
+            apply_btn = st.button("Apply Changes to Original DAG")
+
+            if apply_btn:
+                encountered_error = False
+
+                # ADD edge logic
+                if add_edge_txt.strip():
+                    try:
+                        n1, n2 = [x.strip() for x in add_edge_txt.split(",")]
+                        success = try_add_edge(dag, n1, n2)
+                        if not success:
+                            encountered_error = True
+                    except ValueError:
+                        st.error("Invalid format: must be 'Node1,Node2'.")
+                        encountered_error = True
+                    except Exception as ex:
+                        st.error(f"Error adding edge: {ex}")
+                        encountered_error = True
+
+                # REMOVE edge logic
+                if remove_edge_txt.strip():
+                    try:
+                        n1, n2 = [x.strip() for x in remove_edge_txt.split(",")]
+                        success = try_remove_edge(dag, n1, n2)
+                        if not success:
+                            encountered_error = True
+                    except ValueError:
+                        st.error("Invalid format: must be 'Node1,Node2'.")
+                        encountered_error = True
+                    except Exception as ex:
+                        st.error(f"Error removing edge: {ex}")
+                        encountered_error = True
+
+                # only rerun if no errors
+                if not encountered_error:
+                    st.experimental_rerun()
+
+# ---------------------------------------------------------------------
+# Main App
+# ---------------------------------------------------------------------
+def main():
+    st.title("Causal DAG Summarization Tool")
+    st.markdown("""
+    ### A UI for Summarizing and Interacting with Causal DAGs
+    * Upload or generate an original DAG.
+    * Summarize it, colorize nodes by semantic similarity.
+    * Edit edges with safety checks (no self-loops, no cycles).
+    * Placeholder for computing causal effects.
+    """)
+
+    display_sidebar()
+
+    col1, col2 = st.columns([1,1])
+    with col1:
+        display_dag_column("Original Causal DAG", st.session_state.original_dag, is_original=True)
+    with col2:
+        display_dag_column("Summarized Graph", st.session_state.summarized_dag, is_original=False)
+
+if __name__ == "__main__":
+    main()

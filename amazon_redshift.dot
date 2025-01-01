@@ -1,0 +1,38 @@
+digraph QueryPerformance {
+    QueryTemplate;
+    ReturnedRows;
+    ReturnedBytes;
+    ResultCacheHit;
+    ExecTime;
+    NumJoins;
+    NumTables;
+    NumColumns;
+    CompileTime;
+    PlanTime;
+    LockWaitTime;
+    ElapsedTime;
+
+    QueryTemplate -> ReturnedRows;
+    QueryTemplate -> NumJoins;
+    QueryTemplate -> NumTables;
+    QueryTemplate -> NumColumns;
+    QueryTemplate -> ResultCacheHit;
+    QueryTemplate -> ReturnedBytes;
+    ReturnedRows -> ReturnedBytes;
+    NumJoins -> PlanTime;
+    NumJoins -> LockWaitTime;
+    NumJoins -> ExecTime;
+    NumTables -> PlanTime;
+    NumTables -> LockWaitTime;
+    NumTables -> ExecTime;
+    NumColumns -> ReturnedBytes;
+    NumColumns -> ExecTime;
+    ResultCacheHit-> ExecTime;
+    ResultCacheHit-> LockWaitTime;
+    ResultCacheHit-> PlanTime;
+    ResultCacheHit-> CompileTime;
+    CompileTime -> ElapsedTime;
+    PlanTime -> ElapsedTime;
+    LockWaitTime -> ElapsedTime;
+    ExecTime -> ElapsedTime;
+}
