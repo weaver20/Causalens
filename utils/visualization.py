@@ -54,7 +54,7 @@ def _lighten_color(rgb_str, factor=0.4):
 
 def visualize_dag_with_pyvis(G: nx.DiGraph,
                              color_map=None,
-                             height="600px",
+                             height="700px",
                              width="100%"):
     """
     Visualize a NetworkX DiGraph using PyVis, filling the column width (width="100%").
