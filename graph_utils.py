@@ -5,6 +5,7 @@ import logging
 import tempfile
 import os
 import numpy as np
+import networkx as nx
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +65,7 @@ def generate_dag_algorithm():
 
 def generate_dag_from_dataset(dataset_bytes):
     """
-    Example: generate a DAG from the provided dataset (placeholder logic).
+    Generate a DAG from the provided dataset (Not implemented yet).
     """
     logger.debug("Generating DAG from dataset (placeholder).")
     G = nx.DiGraph()
@@ -73,16 +74,13 @@ def generate_dag_from_dataset(dataset_bytes):
     logger.info(f"DAG from dataset generated with nodes: {list(G.nodes)} and edges: {list(G.edges)}")
     return G
 
-import networkx as nx
-
 def to_pyvis_compatible(G: nx.DiGraph) -> nx.DiGraph:
     """
     Returns a new DiGraph that is guaranteed to have:
       1) String node IDs only
       2) No or minimal node/edge attributes with only string keys
-    so that PyVis can safely render it.
+    Thus PyVis can safely render it.
     """
-    # We'll build a new DiGraph from scratch
     newG = nx.DiGraph()
 
     # 1) For each node in the old graph:
@@ -91,7 +89,7 @@ def to_pyvis_compatible(G: nx.DiGraph) -> nx.DiGraph:
         if isinstance(old_node, str):
             new_node_id = old_node
         else:
-            new_node_id = ",".join(str(x) for x in old_node)  # or any logic you want
+            new_node_id = ",\n".join(str(x) for x in old_node)  # or any logic you want
 
         # Optionally, keep a minimal set of node attributes
         # or omit them entirely if not needed
@@ -110,12 +108,12 @@ def to_pyvis_compatible(G: nx.DiGraph) -> nx.DiGraph:
         if isinstance(u, str):
             new_u = u
         else:
-            new_u = ",".join(str(x) for x in u)
+            new_u = ",\n".join(str(x) for x in u)
 
         if isinstance(v, str):
             new_v = v
         else:
-            new_v = ",".join(str(x) for x in v)
+            new_v = ",\n".join(str(x) for x in v)
 
         # Optionally keep a minimal set of edge attributes
         new_edge_data = {}

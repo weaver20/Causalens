@@ -15,13 +15,9 @@ def CaGreS(dag, k, similarity_df=None, semantic_threshold=0.0):
     Returns:
       A summary DAG (NetworkX DiGraph) with k (or fewer) nodes.
     """
-    # Work on a copy so the original remains intact.
     H = dag.copy()
 
-    # Step 2 of Algorithm 1: Merge node pairs whose cost <= 1.
     H = low_cost_merges(H, similarity_df)
-
-    # Main loop: while we have more than k nodes, pick the min-cost valid pair to merge.
     while len(H.nodes) > k:
         min_cost = math.inf
         best_pair = None
@@ -38,7 +34,7 @@ def CaGreS(dag, k, similarity_df=None, semantic_threshold=0.0):
                 min_cost = c
                 best_pair = (U, V)
             elif math.isclose(c, min_cost, rel_tol=1e-9):
-                # Tie-break randomly (Algorithm 1, line 13)
+                # Tie-break randomly (line 13 at CaGreS in the paper)
                 if random.choice([True, False]):
                     best_pair = (U, V)
 
@@ -57,11 +53,11 @@ def a_valid_pair(U, V, H, similarity_df=None, semantic_threshold=0.0):
     1) Optional semantic check (like your code did)
     2) Check if merging them would create a directed cycle in H
     """
-    # (A) Semantic check
+    # Semantic check
     if not check_semantic(U, V, similarity_df, semantic_threshold):
         return False
 
-    # (B) Cycle check: Merge them in a temporary graph, see if the result is still a DAG
+    # Cycle check: Merge the nodes in a temporary graph, see if the result is still a DAG to avoid self loops or cycles
     temp = H.copy()
     temp = merge_nodes(temp, U, V, self_loops=True)  # or self_loops=False, as desired
     if not nx.is_directed_acyclic_graph(temp):
@@ -70,11 +66,6 @@ def a_valid_pair(U, V, H, similarity_df=None, semantic_threshold=0.0):
     return True
 
 def check_semantic(node1, node2, similarity_df, semantic_threshold):
-    """
-    If you want to filter merges that are semantically different, 
-    you can implement that here. For now, it returns True if no df or 
-    if all pairs are above a threshold.
-    """
     if similarity_df is None:
         return True
 
@@ -99,12 +90,12 @@ def merge_nodes(G, n1, n2, self_loops=False):
 
 def get_cost(U, V, H):
     """
-    Implements Algorithm 2: The GetCost procedure.
+    Implements Algorithm 2 from the paper: The GetCost procedure.
     1) cost for "new edges" among the cluster
     2) cost for "new parents"
     3) cost for "new children"
     """
-    # Determine how many "atomic" nodes each label represents
+    # Determine how many original nodes each label represents
     subU = U.split(',\n')
     subV = V.split(',\n')
     sizeU = len(subU)
@@ -112,12 +103,11 @@ def get_cost(U, V, H):
 
     cost = 0
 
-    # (1) If H does NOT have edge U->V, add size(U)*size(V)
-    #     (some variants also check if H does not have edge V->U, but typically it’s just the one direction)
+    # If H does NOT have edge U->V, add size(U)*size(V)
     if not H.has_edge(U, V):
         cost += sizeU * sizeV
 
-    # (2) "New parents" penalty
+    # "New parents" penalty
     parentsU = set(H.predecessors(U))
     parentsV = set(H.predecessors(V))
     parentsOnlyU = parentsU - parentsV
@@ -125,7 +115,7 @@ def get_cost(U, V, H):
     cost += len(parentsOnlyU) * sizeV
     cost += len(parentsOnlyV) * sizeU
 
-    # (3) "New children" penalty
+    # "New children" penalty
     childrenU = set(H.successors(U))
     childrenV = set(H.successors(V))
     childrenOnlyU = childrenU - childrenV
@@ -167,6 +157,9 @@ def get_grounded_dag(summary_dag):
     return get_grounded_dag_auxiliary(summary_dag, nodes)
 
 def get_grounded_dag_auxiliary(summary_dag,nodes):
+    """
+    Logic copied from Utils Lib.
+    """
     G = summary_dag.copy()
     for n in summary_dag.nodes:
         if ',\n' in n:
