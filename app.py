@@ -56,7 +56,7 @@ initialize_session_state()
 # Sidebar Logic
 # ---------------------------------------------------------------------
 def display_sidebar():
-    with st.sidebar.expander("1. Upload or Generate DAG"):
+    with st.sidebar.expander("1. Upload or Generate DAG", True):
         dag_file = st.file_uploader("Upload Causal DAG File (.dot)", type=["dot"])
         data_file = st.file_uploader("Upload Dataset File (optional):")
 
@@ -92,29 +92,48 @@ def display_sidebar():
             st.info("A DAG is already loaded. Click 'Reset DAG' to start fresh.")
 
     with st.sidebar.expander("2. Configuration Parameters"):
-        st.session_state.size_constraint = st.number_input("Size Constraint:", min_value=1, value=35)
-        st.session_state.semantic_threshold = st.slider("Semantic Similarity Threshold:", 0.0, 1.0, 0.5, 0.05)
-
-    with st.sidebar.expander("3. Compute Causal Effects (Not Implemented)"):
         if st.session_state.original_dag:
-            node_list = list(st.session_state.original_dag.nodes())
-            if len(node_list) < 2:
-                st.warning("Need >=2 nodes to compute causal effects.")
-            else:
-                c1 = st.selectbox("Treatment:", node_list)
-                c2 = st.selectbox("Outcome:", node_list)
-                g_opt = st.selectbox("Compute on:", ["Original Graph","Summarized Graph"])
-                eff_btn = st.button("Compute Causal Effect")
-                if eff_btn:
-                    chosen = (st.session_state.original_dag
-                              if g_opt=="Original Graph"
-                              else st.session_state.summarized_dag)
-                    if chosen:
-                        st.write(f"Placeholder effect of {c1}->{c2} = 0.5")
-                    else:
-                        st.error("No summarized DAG available.")
+            st.session_state.size_constraint = st.number_input("Size Constraint:", min_value=1, value=35)
+            st.session_state.semantic_threshold = st.slider("Semantic Similarity Threshold:", 0.0, 1.0, 0.5, 0.05)
         else:
-            st.info("No original DAG for computing effects.")
+            st.info("Please upload/generate a toy DAG in order to update summarization configuration")
+
+    with st.sidebar.expander("Compute Causal Effects"):
+        # 1) If no original DAG is loaded:
+        if st.session_state.original_dag is None:
+            st.error("No original DAG for computing ATE.")
+        
+        else:
+            # 2) The user can choose which graph to use.
+            graph_options = ["Original DAG"]
+            if st.session_state.summarized_dag is not None:
+                graph_options.append("Summarized DAG")
+
+            chosen_graph_label = st.selectbox(
+                "Select Graph:",
+                graph_options,
+                index=0
+            )
+
+            # Depending on the chosen graph, get the node list
+            if chosen_graph_label == "Original DAG":
+                chosen_graph = st.session_state.original_dag
+            else:
+                chosen_graph = st.session_state.summarized_dag
+
+            nodes_list = list(chosen_graph.nodes())
+
+            # 2.2) Let user pick Treatment/Outcome
+            treatment = st.selectbox("Select Treatment:", nodes_list)
+            outcome   = st.selectbox("Select Outcome:", nodes_list)
+
+            # Finally, a button to compute ATE, etc.
+            compute_button = st.button("Compute ATE")
+            if compute_button:
+                # Placeholder logic:
+                st.write(f"Computing ATE of {chosen_graph_label} ...")
+                # <Placeholder for calculating ATE logic>
+                st.success("ATE computation is a placeholder for now!")
 
 # ---------------------------------------------------------------------
 # Display a DAG Column (PyVis + optional Edit Expander)
@@ -215,6 +234,7 @@ def display_dag_column(title: str, dag: nx.DiGraph, is_original: bool = True):
 
                     st.session_state.summarized_dag = summary_dag
                     st.success("DAG summarized successfully!")
+                    st.experimental_rerun()
 
 # ---------------------------------------------------------------------
 # Main App
