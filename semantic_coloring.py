@@ -1,5 +1,3 @@
-# semantic_coloring.py
-
 import random
 
 def build_semantic_matrix(nodes):
@@ -10,25 +8,23 @@ def build_semantic_matrix(nodes):
     """
     similarity = {node: {} for node in nodes}
 
-    # A toy "category" function
     def get_category(n):
-        econ = ["HDI", "GINI", "GDP"]
-        geo = ["Country", "Continent"]
-        demographics = ["Age", "Gender", "RaceEthnicity", "Dependents"]
-        edu_dev = ["UndergradMajor", "FormalEducation", "DevType"]
-        personal = ["HoursComputer", "ConvertedSalary"]
+        query_metrics = ["QueryTemplate"]
+        result_metrics = ["ReturnedRows", "ReturnedBytes", "ResultCacheHit"]
+        time_metrics = ["ExecTime", "CompileTime", "PlanTime", "LockWaitTime", "ElapsedTime"]
+        structure_metrics = ["NumJoins", "NumTables", "NumColumns"]
 
-        if n in econ:
-            return "econ"
-        elif n in geo:
-            return "geo"
-        elif n in demographics:
-            return "demographics"
-        elif n in edu_dev:
-            return "edu_dev"
-        elif n in personal:
-            return "personal"
-        return "other"
+        if n in query_metrics:
+            return "query_metrics"
+        elif n in result_metrics:
+            return "result_metrics"
+        elif n in time_metrics:
+            return "time_metrics"
+        elif n in structure_metrics:
+            return "structure_metrics"
+        else:
+            return "other"
+
 
     # We'll pick random values in [0.8,1.0] if same category, else [0.0,0.6]
     node_list = list(nodes)

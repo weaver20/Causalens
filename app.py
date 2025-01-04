@@ -16,11 +16,8 @@ import graph_utils
 from summarization import summarize_dag
 from visualization import visualize_dag_with_pyvis, check_for_nonstring_attribute_keys
 from semantic_coloring import colorize_nodes_by_similarity
-import greedy 
+import algo 
 from Utils import ensure_string_labels
-
-
-# NEW: import from our new file
 from graph_ops import try_add_edge, try_remove_edge
 
 # ---------------------------------------------------------------------
@@ -38,7 +35,7 @@ logger = logging.getLogger()
 # Streamlit Page Config
 # ---------------------------------------------------------------------
 st.set_page_config(
-    page_title="Causal DAG Summarization Tool",
+    page_title="✨ Causal DAG Summarization Tool",
     layout="wide"
 )
 
@@ -54,13 +51,6 @@ def initialize_session_state():
         st.session_state.dataset = None
 
 initialize_session_state()
-
-# ---------------------------------------------------------------------
-# Summarize DAG (cached)
-# ---------------------------------------------------------------------
-@st.cache_data
-def cached_summarize_dag(dag, constraint, thresh):
-    return summarize_dag(dag, constraint, thresh)
 
 # ---------------------------------------------------------------------
 # Sidebar Logic
@@ -102,39 +92,17 @@ def display_sidebar():
             st.info("A DAG is already loaded. Click 'Reset DAG' to start fresh.")
 
     with st.sidebar.expander("2. Configuration Parameters"):
-        st.session_state.size_constraint = st.number_input("Size Constraint:", min_value=1, value=10)
+        st.session_state.size_constraint = st.number_input("Size Constraint:", min_value=1, value=35)
         st.session_state.semantic_threshold = st.slider("Semantic Similarity Threshold:", 0.0, 1.0, 0.5, 0.05)
 
-    with st.sidebar.expander("3. Summarize DAG"):
-        summarize_button = st.button("Summarize Casual DAG")
-        if summarize_button:
-            if st.session_state.original_dag is None:
-                st.warning("Please provide or generate a DAG before summarizing.")
-            else:
-                with st.spinner("Summarizing DAG..."):
-                    original_dag = st.session_state.original_dag
-                    nodes_list = list(original_dag.nodes())
-                    k_value = 5 # For now it is hardcoded
-                    #similarity_mat= dict_of_dicts_to_numpy(colorize_nodes_by_similarity(nodes_list)[0])
-                    #similarity_df = pd.DataFrame(similarity_mat, index=nodes_list, columns=nodes_list)
-
-                    summary_dag = greedy.CaGreS(original_dag, 5)
-
-                    # Ensuring all edges, nodes in the graph contain only string attributes, whatever has non-string is being converted into string
-                    summary_dag = ensure_string_labels(summary_dag)
-                    graph_utils.fix_nested_keys_in_edge_attrs(summary_dag)
-
-                    st.session_state.summarized_dag = summary_dag
-                    st.success("DAG summarized successfully!")
-
-    with st.sidebar.expander("4. Compute Causal Effects (placeholder)"):
+    with st.sidebar.expander("3. Compute Causal Effects (Not Implemented)"):
         if st.session_state.original_dag:
             node_list = list(st.session_state.original_dag.nodes())
             if len(node_list) < 2:
                 st.warning("Need >=2 nodes to compute causal effects.")
             else:
-                c1 = st.selectbox("Node 1:", node_list)
-                c2 = st.selectbox("Node 2:", node_list)
+                c1 = st.selectbox("Treatment:", node_list)
+                c2 = st.selectbox("Outcome:", node_list)
                 g_opt = st.selectbox("Compute on:", ["Original Graph","Summarized Graph"])
                 eff_btn = st.button("Compute Causal Effect")
                 if eff_btn:
@@ -157,9 +125,9 @@ def display_dag_column(title: str, dag: nx.DiGraph, is_original: bool = True):
         st.info(f"No {title.lower()} is currently available.")
         return
 
-    #if not is_valid_dag(dag):
-    #    st.warning(f"The {title.lower()} is not a valid DAG.")
-    #    return
+    if not is_valid_dag(dag):
+        st.warning(f"The {title.lower()} is not a valid DAG.")
+        return
 
     # colorize
     node_list = list(dag.nodes())
@@ -222,11 +190,37 @@ def display_dag_column(title: str, dag: nx.DiGraph, is_original: bool = True):
                 if not encountered_error:
                     st.experimental_rerun()
 
+
+        summarize_button = st.button("Summarize Casual DAG", key="summarize_button_left_col")
+        if summarize_button:
+            if st.session_state.original_dag is None:
+                st.warning("Please provide or generate a DAG before summarizing.")
+            else:
+                with st.spinner("Summarizing DAG..."):
+                    original_dag = st.session_state.original_dag
+                    nodes_list = list(original_dag.nodes())
+                    k_value = st.session_state.size_constraint
+                    semantic_threshold = st.session_state.semantic_threshold
+                    similarity_mat= dict_of_dicts_to_numpy(colorize_nodes_by_similarity(nodes_list)[0])
+                    similarity_df = pd.DataFrame(similarity_mat, index=nodes_list, columns=nodes_list)
+
+                    if not semantic_threshold:
+                        summary_dag = algo.CaGreS(original_dag, k_value)
+                    else:
+                        summary_dag = algo.CaGreS(original_dag, k_value, similarity_df, semantic_threshold)
+
+                    # Ensuring all edges, nodes in the graph contain only string attributes, whatever has non-string is being converted into string
+                    summary_dag = ensure_string_labels(summary_dag)
+                    graph_utils.fix_nested_keys_in_edge_attrs(summary_dag)
+
+                    st.session_state.summarized_dag = summary_dag
+                    st.success("DAG summarized successfully!")
+
 # ---------------------------------------------------------------------
 # Main App
 # ---------------------------------------------------------------------
 def main():
-    st.title("Causal DAG Summarization Tool")
+    st.title("✨ Causal DAG Summarization Tool")
     st.markdown("""
     ### A UI for Summarizing and Interacting with Causal DAGs
     * Upload or generate an original DAG.
