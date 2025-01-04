@@ -82,5 +82,5 @@ def sidebar_compute_causal_effects():
     outcome = st.selectbox("Select Outcome:", nodes_list)
 
     if st.button("Compute ATE"):
-        st.write(f"Computing ATE on {chosen}, from {treatment} to {outcome} (placeholder).")
-        st.success("ATE computation is a placeholder.")
+        st.write(f"Computing ATE...")
+        st.success("ATE computation has not been implemented yet.")
