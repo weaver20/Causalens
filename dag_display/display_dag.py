@@ -1,7 +1,7 @@
 import streamlit as st
 import networkx as nx
 import streamlit.components.v1 as components
-from utils.graph_utils import to_pyvis_compatible, fix_nested_keys_in_edge_attrs
+from utils.graph_utils import to_pyvis_compatible
 from utils.visualization import visualize_dag_with_pyvis, check_for_nonstring_attribute_keys
 from utils.semantic_coloring import colorize_nodes_by_similarity
 from Utils import ensure_string_labels

@@ -1,0 +1,4 @@
+build-essential
+graphviz
+libgraphviz-dev
+pkg-config

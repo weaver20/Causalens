@@ -2,7 +2,6 @@ import math
 import networkx as nx
 import itertools
 import random
-from itertools import combinations
 
 def CaGreS(dag, k, similarity_df=None, semantic_threshold=0.0):
     """
