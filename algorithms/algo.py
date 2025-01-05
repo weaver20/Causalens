@@ -1,7 +1,9 @@
+from dowhy import CausalModel
 import math
 import networkx as nx
 import itertools
 import random
+import pandas as pd
 
 def CaGreS(dag, k, similarity_df=None, semantic_threshold=0.0):
     """
@@ -150,3 +152,62 @@ def low_cost_merges(dag, similarity_df=None, semantic_threshold=0.0):
             # No more merges with cost <= 1
             break
     return G
+
+def estimate_binary_treatment_effect(pkl_file, treatment_column, category_of_interest, outcome_column, graph):
+    """
+    General-purpose function to:
+      1) Load a DataFrame from a .pkl file.
+      2) Convert 'treatment_column' into a binary variable, 
+         where rows equal to 'category_of_interest' become 1, and 0 otherwise.
+      3) Estimate the causal effect of this binary treatment on 'outcome_column' 
+         using DoWhy (backdoor.linear_regression).
+    
+    Parameters:
+    -----------
+    pkl_file : str
+        Path to the .pkl file containing the DataFrame.
+    treatment_column : str
+        Name of the (categorical) column we want to turn into a binary treatment.
+    category_of_interest : str
+        The specific category that should become "1" (everything else is "0").
+    outcome_column : str
+        Name of the outcome variable in the DataFrame.
+    graph : (str or networkx.DiGraph)
+        The causal graph, either as a DOT-notation string or a NetworkX DiGraph.
+    
+    Returns:
+    --------
+    estimate : dowhy.causal_estimator.CausalEstimate
+        The estimated effect object from DoWhy (includes ATE, confidence intervals, etc.).
+    """
+    # 1) Load the DataFrame from the .pkl file
+    df = pd.read_pickle(pkl_file)
+    
+    # 2) Convert the categorical treatment_column to a binary variable
+    #    1 if the value == category_of_interest, else 0
+    binary_col = treatment_column + "_binary"
+    df[binary_col] = (df[treatment_column] == category_of_interest).astype(int)
+    
+    # 3) Build a DoWhy causal model with the new binary column as 'treatment'
+    model = CausalModel(
+        data=df,
+        treatment=binary_col,
+        outcome=outcome_column,
+        graph=graph
+    )
+    
+    # Identify the effect (allowing unidentifiable graphs to proceed)
+    identified_estimand = model.identify_effect(proceed_when_unidentifiable=True)
+    
+    # 4) Estimate effect with a simple backdoor linear regression
+    estimate = model.estimate_effect(
+        identified_estimand,
+        method_name="backdoor.linear_regression",
+        confidence_intervals=True,
+        test_significance=True,
+    )
+    
+    # 5) Print the results
+    print(estimate)
+    
+    return estimate

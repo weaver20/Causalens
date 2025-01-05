@@ -16,9 +16,17 @@ def try_add_edge(G: nx.DiGraph, n1: str, n2: str) -> bool:
         st.error("Cannot add a self-loop edge.")
         return False
 
-    # 2) Check if edge already exists
+    # 2) Check if edge already exists or nodes do not exist
     if G.has_edge(n1, n2):
         st.error(f"Edge ({n1}->{n2}) already exists.")
+        return False
+    
+    if not G.has_node(n1):
+        st.error(f"Node {n1} does not exist.")
+        return False
+    
+    if not G.has_node(n2):
+        st.error(f"Node {n2} does not exist.")
         return False
 
     # 3) Attempt to add

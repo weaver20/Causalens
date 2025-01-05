@@ -83,4 +83,5 @@ def sidebar_compute_causal_effects():
 
     if st.button("Compute ATE"):
         st.write(f"Computing ATE...")
+        # <ATE Computation Logic>
         st.success("ATE computation has not been implemented yet.")
