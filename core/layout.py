@@ -10,7 +10,7 @@ def render_main_header():
     * **Configure** size constraint & semantic threshold in the sidebar.
     * **Visualize** the DAG with color-coded nodes.
     * **Add / Remove edges** safely.
-    * **Summarize** with CaGreS, then compute placeholder effects.
+    * **Summarize** with CaGreS, then compute casual effect.
     """)
 
 def layout_main_columns():
