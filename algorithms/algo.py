@@ -4,8 +4,80 @@ import networkx as nx
 import itertools
 import random
 import pandas as pd
+import Utils
+from utils import graph_utils
+from itertools import combinations
 
-def CaGreS(dag, k, similarity_df=None, semantic_threshold=0.0):
+def is_special_pair(graph, node1, node2):
+    # Check if there is an edge between node1 and node2
+    if graph.has_edge(node1, node2):
+        # Check if node1 has no outgoing edges and node2 has one incoming and one outgoing edge
+        if graph.out_degree(node1) == 0 and graph.in_degree(node2) == 1 and graph.out_degree(node2) == 1:
+            return True
+        if graph.out_degree(node2) == 0 and graph.in_degree(node1) == 1 and graph.out_degree(node1) == 1:
+            return True
+        if graph.in_degree(node1) == 0 and graph.in_degree(node2) == 1 and graph.out_degree(node2) == 1:
+            return True
+        if graph.in_degree(node2) == 0 and graph.in_degree(node1) == 1 and graph.out_degree(node1) == 1:
+            return True
+    return False
+
+def low_cost_merges(dag, similarity_df, not_valid):
+    nodes = dag.nodes()
+    to_merge = []
+    node_pairs = combinations(nodes, 2)
+    for pair in node_pairs:
+        n1 = pair[0]
+        n2 = pair[1]
+        if not Utils.a_valid_pair(n1,n2, dag, similarity_df,dag):
+            not_valid.add(pair)
+            continue
+        if not n1 == n2:
+            if '_' in n1 or '_' in n2:
+                continue
+            if Utils.semantic_sim(n1, n2, similarity_df):
+                if is_special_pair(dag, n1, n2):
+                    to_merge.append((n1, n2))
+                elif zero_cost(dag, n1, n2):
+                    to_merge.append((n1, n2))
+
+    G = dag.copy()
+    for pair in to_merge:
+        node1 = pair[0]
+        node2 = pair[1]
+        if node1 in G.nodes and node2 in G.nodes:
+            G = nx.contracted_nodes(G, node1, node2, self_loops=False)
+            new_node_name = node1 + '_' + node2
+            G = nx.relabel_nodes(G, {node1: str(new_node_name), node2: str(new_node_name)})
+
+    return G, not_valid
+
+def zero_cost(G, n1, n2):
+    if G.has_edge(n1, n2) or G.has_edge(n2,n1):
+        parents1 = set(G.predecessors(n1))
+        if n2 in parents1:
+            parents1.remove(n2)
+        parents2 = set(G.predecessors(n2))
+        if n1 in parents2:
+            parents2.remove(n1)
+
+        children1 = set(G.successors(n1))
+        if n2 in children1:
+            children1.remove(n2)
+        children2 = set(G.successors(n2))
+        if n1 in children2:
+            children2.remove(n1)
+        return parents1 == parents2 and children1 == children2
+    else:
+        parents1 = set(G.predecessors(n1))
+        parents2 = set(G.predecessors(n2))
+        children1 = set(G.successors(n1))
+        children2 = set(G.successors(n2))
+        return parents1 == parents2 and children1 == children2
+
+
+
+def CaGreS(dag, k, similarity_df):
     """
     Implements Algorithm 1 (CaGreS) from the paper
     Inputs:
@@ -16,198 +88,228 @@ def CaGreS(dag, k, similarity_df=None, semantic_threshold=0.0):
     Returns:
       A summary DAG (NetworkX DiGraph) with k (or fewer) nodes.
     """
-    H = dag.copy()
+    if len(dag.nodes) <= k:
+        return dag
 
-    H = low_cost_merges(H, similarity_df)
-    while len(H.nodes) > k:
-        min_cost = math.inf
-        best_pair = None
+    not_valid = set()
+    G, not_valid = low_cost_merges(dag, similarity_df, not_valid)
 
-        # Explore all pairs
-        for (U, V) in itertools.combinations(H.nodes, 2):
-            if not a_valid_pair(U, V, H, similarity_df, semantic_threshold=0.0):
-                continue
-
-            c = get_cost(U, V, H)
-
-            # Keep the pair with the minimal cost
-            if c < min_cost:
-                min_cost = c
-                best_pair = (U, V)
-            elif math.isclose(c, min_cost, rel_tol=1e-9):
-                # Tie-break randomly (line 13 at CaGreS in the paper)
-                if random.choice([True, False]):
-                    best_pair = (U, V)
-
-        # If no valid pair was found, break to avoid infinite loops
-        if best_pair is None:
+    cost_scores = {}
+    while len(G.nodes) > k:
+        G, not_valid, cost_scores = fast_merge_pair(G, dag, similarity_df,
+                                                     not_valid, cost_scores)
+        
+        # Could not summarize the DAG with given constraints
+        if not G:
             break
 
-        # Merge the best pair
-        U, V = best_pair
-        H = merge_nodes(H, U, V)
-    return H
+    return G
 
-def a_valid_pair(U, V, H, similarity_df=None, semantic_threshold=0.0):
-    """
-    Checks if merging U, V would be valid (Algorithm 1, line 8, IsValidPair).
-    1) Optional semantic check (like your code did)
-    2) Check if merging them would create a directed cycle in H
-    """
-    # Semantic check
-    if not check_semantic(U, V, similarity_df, semantic_threshold):
-        return False
+def fast_merge_pair(G,dag,similarity_df,not_valid, cost_scores, verbos = False):
+    node_pairs = itertools.combinations(G.nodes(), 2)
+    min_cost   = math.inf
+    max_pair   = []
 
-    # Cycle check: Merge the nodes in a temporary graph, see if the result is still a DAG to avoid self loops or cycles
-    temp = H.copy()
-    temp = merge_nodes(temp, U, V, self_loops=True)  # or self_loops=False, as desired
-    if not nx.is_directed_acyclic_graph(temp):
-        return False
+    for pair in node_pairs:
+        node1 = pair[0]
+        node2 = pair[1]
+        if pair in not_valid:
+            continue
+        valid = Utils.a_valid_pair(node1,node2,dag, similarity_df, G)
+        if valid == False:
+            not_valid.add(pair)
+        else:
+            if pair in cost_scores:
+                cost = cost_scores[pair]
+            else:
+                cost = get_cost(node1, node2, G)
+                cost_scores[pair] = cost
+            if verbos:
+                print(pair,cost)
+            if cost < min_cost:
+                min_cost = cost
+                max_pair = pair
+            elif cost == min_cost:
+                if random.choice([True, False]):
+                    min_cost = cost
+                    max_pair = pair
+    if len(max_pair) == 0:
+        node1 = node2 = None
+        print("Could not find a pair to merge; Merging a random valid pair!")
+        for pair in node_pairs:
+            if pair in not_valid:
+                continue
+            node1 = pair[0]
+            node2 = pair[1]
+            if Utils.a_valid_pair(node1, node2, dag):
+                max_pair = pair
+                #TODO check for raising an exception or returning a message that we cannot merge since no valid pair for merge found
+                node1 = max_pair[0]
+                node2 = max_pair[1]
 
-    return True
+        # Could not find a proper
+        if not node1 or not node2:
+            return None, not_valid, cost_scores
 
-def check_semantic(node1, node2, similarity_df, semantic_threshold):
-    if similarity_df is None:
-        return True
+    cost_scores = update_cost_scores(cost_scores, node1, node2, G)
+    #print("choose to merge: ", node1,node2)
+    G = nx.contracted_nodes(G, node1, node2, self_loops=False)
+    new_node_name = node1 + '_' + node2
+    G = nx.relabel_nodes(G, {node1: str(new_node_name), node2: str(new_node_name)})
 
-    sub1 = node1.split(',\n')
-    sub2 = node2.split(',\n')
-    for s1 in sub1:
-        for s2 in sub2:
-            sim = max(similarity_df[s1][s2], similarity_df[s2][s1])
-            if sim < semantic_threshold:
-                return False
-    return True
+    return G, not_valid, cost_scores
 
-def merge_nodes(G, n1, n2, self_loops=False):
-    """
-    Merge n2 into n1 using nx.contracted_nodes, then rename the merged node 
-    to a combined label "n1,\nn2".
-    """
-    merged = nx.contracted_nodes(G, n1, n2, self_loops=self_loops)
-    new_label = n1 + ",\n" + n2
-    merged = nx.relabel_nodes(merged, {n1: new_label})
-    return merged
+def update_cost_scores(cost_scores, node1, node2, G):
+    nodes = [node1,node2]
+    nodes = nodes + list(G.predecessors(node1)) + list(G.successors(node1))
+    nodes = nodes + list(G.predecessors(node2)) + list(G.successors(node2))
+    to_remove = []
+    for k in cost_scores:
+        for n in nodes:
+            if n in k:
+                to_remove.append(k)
+                break
+    filtered_dict = {key: value for key, value in cost_scores.items() if key not in to_remove}
+    return filtered_dict
 
-def get_cost(U, V, H):
-    """
-    Implements Algorithm 2 from the paper: The GetCost procedure.
-    1) cost for "new edges" among the cluster
-    2) cost for "new parents"
-    3) cost for "new children"
-    """
-    # Determine how many original nodes each label represents
-    subU = U.split(',\n')
-    subV = V.split(',\n')
-    sizeU = len(subU)
-    sizeV = len(subV)
-
+def get_cost(node1, node2,G):
     cost = 0
+    nodes1 = node1.split('_')
+    nodes2 = node2.split('_')
+    #edges among the new cluster
+    if not G.has_edge(node1, node2):
+        cost = cost + len(nodes1)*len(nodes2)
 
-    # If H does NOT have edge U->V, add size(U)*size(V)
-    if not H.has_edge(U, V):
-        cost += sizeU * sizeV
+    #edges to parents and children
+    parents1 = set(G.predecessors(node1))
+    parents2 = set(G.predecessors(node2))
 
-    # "New parents" penalty
-    parentsU = set(H.predecessors(U))
-    parentsV = set(H.predecessors(V))
-    parentsOnlyU = parentsU - parentsV
-    parentsOnlyV = parentsV - parentsU
-    cost += len(parentsOnlyU) * sizeV
-    cost += len(parentsOnlyV) * sizeU
+    #unique parents of node1
+    if node2 in parents1:
+        parents1.remove(node2)
+    parents1 = parents1 - parents2#[p for p in parents1 if not p in parents2]
+    cost = cost + len(parents1)*len(nodes2)
 
-    # "New children" penalty
-    childrenU = set(H.successors(U))
-    childrenV = set(H.successors(V))
-    childrenOnlyU = childrenU - childrenV
-    childrenOnlyV = childrenV - childrenU
-    cost += len(childrenOnlyU) * sizeV
-    cost += len(childrenOnlyV) * sizeU
+    #parents1 = list(G.predecessors(node1))
+    # unique parents of node2
+    if node1 in parents2:
+        parents2.remove(node1)
+    parents2 = parents2-parents1#[p for p in parents2 if not p in parents1]
+    cost = cost + len(parents2) * len(nodes1)
+
+    children1 = set(G.successors(node1))
+    children2 = set(G.successors(node2))
+    # unique children of node1
+    if node2 in children1:
+        children1.remove(node2)
+    children1 = children1 - children2#[p for p in children1 if not p in children1]
+    cost = cost + len(children1) * len(nodes2)
+
+    #children1 = list(G.successors(node1))
+    # unique children of node2
+    if node1 in children2:
+        children2.remove(node1)
+    children2 = children2 - children1#[p for p in children2 if not p in children1]
+    cost = cost + len(children2) * len(nodes1)
 
     return cost
 
-def low_cost_merges(dag, similarity_df=None, semantic_threshold=0.0):
-    """
-    Implements "Merge node‐pairs in which their cost <= 1" (Algorithm 1, line 2).
-    We do this one merge at a time in a loop (not all simultaneously),
-    because each merge changes the graph and can affect subsequent costs.
-    """
-    G = dag.copy()
-
-    # Keep trying until no more merges of cost <= 1 can be found
-    while True:
-        merged_something = False
-        for (n1, n2) in itertools.combinations(list(G.nodes), 2):
-            if not a_valid_pair(n1, n2, G, similarity_df, semantic_threshold):
-                continue
-
-            c = get_cost(n1, n2, G)
-            if c <= 1:
-                # Merge them immediately
-                G = merge_nodes(G, n1, n2)
-                merged_something = True
-                # Because we changed the graph, start again
-                break  
-        if not merged_something:
-            # No more merges with cost <= 1
-            break
-    return G
-
-def estimate_binary_treatment_effect(pkl_file, treatment_column, category_of_interest, outcome_column, graph):
-    """
-    General-purpose function to:
-      1) Load a DataFrame from a .pkl file.
-      2) Convert 'treatment_column' into a binary variable, 
-         where rows equal to 'category_of_interest' become 1, and 0 otherwise.
-      3) Estimate the causal effect of this binary treatment on 'outcome_column' 
-         using DoWhy (backdoor.linear_regression).
-    
-    Parameters:
-    -----------
-    pkl_file : str
-        Path to the .pkl file containing the DataFrame.
-    treatment_column : str
-        Name of the (categorical) column we want to turn into a binary treatment.
-    category_of_interest : str
-        The specific category that should become "1" (everything else is "0").
-    outcome_column : str
-        Name of the outcome variable in the DataFrame.
-    graph : (str or networkx.DiGraph)
-        The causal graph, either as a DOT-notation string or a NetworkX DiGraph.
-    
-    Returns:
-    --------
-    estimate : dowhy.causal_estimator.CausalEstimate
-        The estimated effect object from DoWhy (includes ATE, confidence intervals, etc.).
-    """
-    # 1) Load the DataFrame from the .pkl file
+def estimate_binary_treatment_effect(pkl_file, treatment_column, logic_condition, outcome_column, graph):
+    # 1) Load the DataFrame and convert columns to PascalCase if needed
     df = pd.read_pickle(pkl_file)
-    
-    # 2) Convert the categorical treatment_column to a binary variable
-    #    1 if the value == category_of_interest, else 0
-    binary_col = treatment_column + "_binary"
-    df[binary_col] = (df[treatment_column] == category_of_interest).astype(int)
-    
-    # 3) Build a DoWhy causal model with the new binary column as 'treatment'
+    Utils.convert_df_columns_snake_to_pascal_inplace(df)
+
+    # 2) Back up the original values from the treatment column
+    original_values = df[treatment_column].copy()
+
+    # 3) Overwrite the column in-place with 0 or 1, according to logic_condition
+    #    - Replace 'treatment_column' in the condition with the actual column name
+    #    - Translate "AND" -> "&", "OR" -> "|" for pandas.eval, etc.
+    parsed_condition = (
+        logic_condition
+        .replace("AND", "&")
+        .replace("OR", "|")
+    )
+
+    # Evaluate the condition, set matching rows to 1
+    matching_rows = df.eval(parsed_condition)
+    df[treatment_column] = 0
+    df.loc[matching_rows, treatment_column] = 1
+
+    # 4) Build a DoWhy causal model using the altered treatment column
+    graph_str = graph_utils.to_digraph_string(graph)
     model = CausalModel(
         data=df,
-        treatment=binary_col,
+        treatment=treatment_column,
         outcome=outcome_column,
-        graph=graph
+        graph=graph_str
     )
-    
-    # Identify the effect (allowing unidentifiable graphs to proceed)
+
+    # 5) Identify the effect
     identified_estimand = model.identify_effect(proceed_when_unidentifiable=True)
-    
-    # 4) Estimate effect with a simple backdoor linear regression
-    estimate = model.estimate_effect(
+
+    # 6) Estimate effect with a simple backdoor method (e.g. linear regression)
+    causal_estimate_reg = model.estimate_effect(
         identified_estimand,
         method_name="backdoor.linear_regression",
-        confidence_intervals=True,
         test_significance=True,
     )
-    
-    # 5) Print the results
-    print(estimate)
-    
-    return estimate
+
+    # 7) Restore the original column values
+    df[treatment_column] = original_values
+
+    return causal_estimate_reg.value, causal_estimate_reg.test_stat_significance()['p_value']
+
+def get_grounded_dag(summary_dag):
+    nodes = list(nx.topological_sort(summary_dag))
+    return get_grounded_dag_auxiliary(summary_dag, nodes)
+
+def get_grounded_dag_auxiliary(summary_dag,nodes):
+    """
+    Logic copied from Utils Lib.
+    """
+    G = summary_dag.copy()
+    for n in summary_dag.nodes:
+        if ',\n' in n:
+            new_nodes = n.split(',\n')
+            node_to_split = n
+
+            # Identify parents and children of the original node
+            parents = list(G.predecessors(node_to_split))
+            children = list(G.successors(node_to_split))
+
+            # Add edges between new nodes and parents/children
+            for parent in parents:
+                for new_node in new_nodes:
+                    G.add_edge(parent, new_node)
+
+            for child in children:
+                for new_node in new_nodes:
+                    G.add_edge(new_node, child)
+
+            for new_node in new_nodes:
+                for node_before in nodes:
+                    if node_before not in n:
+                        continue
+                    if node_before == new_node:
+                        break  # Stop connecting nodes once we reach the target node
+                    G.add_edge(node_before, new_node)
+            # Remove the original node
+            G.remove_node(node_to_split)
+    #show_dag(G,'grounded_dag')
+    return G
+
+def debug_print(graph, matching_rows, treatment_column, outcome_column, parsed_condition):
+    print("===============")
+    graph_str = graph_utils.to_digraph_string(graph)
+    print("matching rows : ")
+    print(matching_rows)
+    print("Graph: " + graph_str)
+    print("treatment: " + treatment_column)
+    print("outcome: " + outcome_column)
+    print("condition: " + parsed_condition)
+    print()
+    print(f"{treatment_column} values " + ", ".join(df[treatment_column].astype(str)))
+    print(f"{outcome_column} values " + ", ".join(df[outcome_column].astype(str)))
+    #print("DF columns: " + ", ".join(df.columns.to_list()))
+    print("===============")

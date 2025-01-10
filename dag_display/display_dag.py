@@ -8,13 +8,15 @@ from Utils import ensure_string_labels
 from dag_display.edge_edit import edit_edges_expander
 from dag_display.summarize_button import summarize_dag_button
 from utils.graph_utils import is_valid_dag
+from Utils import convert_nodes_snake_to_pascal_case
 
 def display_dag_column(title: str, dag: nx.DiGraph, is_original: bool = True):
     st.subheader(title)
-
+    
     if not _check_dag(dag, title):
         return
-
+    
+    dag = convert_nodes_snake_to_pascal_case(dag)
     dag_str = ensure_string_labels(dag)
     if not is_original:
         check_for_nonstring_attribute_keys(dag_str)

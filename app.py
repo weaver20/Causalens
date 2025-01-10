@@ -1,4 +1,3 @@
-# app.py
 import streamlit as st
 import logging
 from core.session_state import initialize_session_state

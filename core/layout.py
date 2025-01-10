@@ -10,12 +10,12 @@ def render_main_header():
     * **Configure** size constraint & semantic threshold in the sidebar.
     * **Visualize** the DAG with color-coded nodes.
     * **Add / Remove edges** safely.
-    * **Summarize** with CaGreS, then compute casual effect.
+    * **Summarize** with CaGreS, then compute causal effect.
     """)
 
 def layout_main_columns():
     c1, c2 = st.columns([1, 1])
     with c1:
-        display_dag_column("Causal Toy DAG", st.session_state.original_dag, is_original=True)
+        display_dag_column("Original Causal DAG", st.session_state.original_dag, is_original=True)
     with c2:
         display_dag_column("Summarized Causal DAG", st.session_state.summarized_dag, is_original=False)

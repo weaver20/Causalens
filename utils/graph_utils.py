@@ -184,3 +184,11 @@ def dict_of_dicts_to_numpy(similarity):
             array[i, j] = similarity[ni][nj]
     
     return array
+
+def to_digraph_string(G: nx.DiGraph) -> str:
+    edges_str_list = []
+    for u, v in G.edges():
+        edges_str_list.append(f"{u} -> {v}")
+
+    edges_str = "; ".join(edges_str_list)
+    return f"digraph {{{edges_str};}}"

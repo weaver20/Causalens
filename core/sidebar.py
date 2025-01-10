@@ -1,9 +1,19 @@
 import streamlit as st
+import Utils
+from algorithms import algo
 from utils.graph_utils import (
     load_dag_from_file,
     generate_dag_algorithm,
-    generate_dag_from_dataset,
 )
+
+TOKEN_PATTERN = r"""
+        (?P<LPAREN>\() |
+        (?P<RPAREN>\)) |
+        (?P<NOT>NOT\b) |
+        (?P<AND>AND\b) |
+        (?P<OR>OR\b) |
+        (?P<COND>(?P<NODE>[A-Za-z0-9_]+)\s*(?P<OP>==|!=|<=|>=|<|>)\s*(?P<VAL>("[^"]*"|'[^']*'|[A-Za-z0-9_.]+)))
+    """
 
 def display_sidebar():
     with st.sidebar.expander("1. Upload or Generate DAG", expanded=True):
@@ -18,7 +28,6 @@ def display_sidebar():
 
 def sidebar_upload_or_generate_dag():
     dag_file = st.file_uploader("Upload Causal DAG (.dot)", type=["dot"])
-    data_file = st.file_uploader("Upload Dataset File (optional):")
 
     c1, c2 = st.columns([1, 1])
     with c1:
@@ -38,12 +47,7 @@ def sidebar_upload_or_generate_dag():
             if loaded_dag:
                 st.session_state.original_dag = loaded_dag
                 st.success("DAG uploaded successfully!")
-        elif data_file and gen_btn:
-            st.session_state.dataset = data_file.getvalue()
-            new_dag = generate_dag_from_dataset(st.session_state.dataset)
-            st.session_state.original_dag = new_dag
-            st.success("DAG generated from dataset.")
-        elif gen_btn and data_file is None:
+        elif gen_btn:
             st.session_state.original_dag = generate_dag_algorithm()
             st.success("Placeholder DAG generated.")
     else:
@@ -66,22 +70,53 @@ def sidebar_compute_causal_effects():
     if st.session_state.original_dag is None:
         st.error("No original DAG for computing ATE.")
         return
-
+    
+    # 1) Upload a dataset
+    dataset = st.file_uploader("Upload Dataset File (optional):", type=["pkl"])
+    if dataset is None:
+        st.error("No dataset uploaded for computing the ATE.")
+        return
+    
+    # 2) Graph Selection
     graph_options = ["Original DAG"]
     if st.session_state.summarized_dag is not None:
         graph_options.append("Summarized DAG")
 
-    chosen = st.selectbox("Select Graph:", graph_options, index=0)
-    if chosen == "Original DAG":
-        g = st.session_state.original_dag
+    chosen_graph_label = st.selectbox("Select Graph:", graph_options, index=0)
+
+    if chosen_graph_label == "Original DAG":
+        G = st.session_state.original_dag
     else:
-        g = st.session_state.summarized_dag
+        summary_dag = st.session_state.summarized_dag
+        G = algo.get_grounded_dag(summary_dag)
+    G = Utils.convert_nodes_snake_to_pascal_case(G)
 
-    nodes_list = list(g.nodes())
-    treatment = st.selectbox("Select Treatment:", nodes_list)
-    outcome = st.selectbox("Select Outcome:", nodes_list)
+    # 3) Treatment
+    nodes_list = list(st.session_state.original_dag.nodes())
+    treatment_node = st.selectbox("Select Treatment Node:", nodes_list)
 
+    condition_input = st.text_input(
+        "Enter logic condition for the Treatment Node:",
+        value="",
+        placeholder="e.g. NumColumns == 4 or NumColumns <= 5"
+    )
+
+    # 4) Outcome Selection
+    outcome_node = st.selectbox("Select Outcome:", nodes_list)
+
+    # 5) Compute Button
     if st.button("Compute ATE"):
-        st.write(f"Computing ATE...")
-        # <ATE Computation Logic>
-        st.success("ATE computation has not been implemented yet.")
+        condition_res = Utils.is_valid_condition(condition_input, treatment_node)
+        if not condition_res[0]:
+            st.error(
+                "Invalid logic condition. " + condition_res[1]
+            )
+        else:
+            estimate_res = algo.estimate_binary_treatment_effect(
+                    dataset, 
+                    treatment_node, 
+                    condition_input, 
+                    outcome_node, 
+                    G)
+            st.success(f"Mean Value: {estimate_res[0]}")
+            st.success(f"P Value: {estimate_res[1]}")

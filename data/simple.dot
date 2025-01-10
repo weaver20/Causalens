@@ -1,0 +1,13 @@
+digraph Simple {
+    A;
+    B;
+    C;
+    D;
+    E;
+
+    A -> B;
+    A -> C;
+    C -> D;
+    B -> D;
+    D -> E;
+}
