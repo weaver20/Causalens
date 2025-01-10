@@ -3,6 +3,8 @@ import logging
 from core.session_state import initialize_session_state
 from core.layout import render_main_header, layout_main_columns
 from core.sidebar import display_sidebar
+from random import seed
+seed(None)
 
 # ---------------------------------------------------------------------
 # Logging Configuration

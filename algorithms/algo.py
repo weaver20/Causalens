@@ -6,7 +6,7 @@ import random
 import pandas as pd
 import Utils
 from utils import graph_utils
-from itertools import combinations
+import itertools
 
 def is_special_pair(graph, node1, node2):
     # Check if there is an edge between node1 and node2
@@ -22,20 +22,20 @@ def is_special_pair(graph, node1, node2):
             return True
     return False
 
-def low_cost_merges(dag, similarity_df, not_valid):
+def low_cost_merges(dag, similarity_df, not_valid, semantic_threshold):
     nodes = dag.nodes()
     to_merge = []
-    node_pairs = combinations(nodes, 2)
+    node_pairs = sorted(list(itertools.combinations(sorted(nodes), 2)))
     for pair in node_pairs:
         n1 = pair[0]
         n2 = pair[1]
-        if not Utils.a_valid_pair(n1,n2, dag, similarity_df,dag):
+        if not Utils.a_valid_pair(n1, n2, similarity_df, dag, semantic_threshold):
             not_valid.add(pair)
             continue
         if not n1 == n2:
             if '_' in n1 or '_' in n2:
                 continue
-            if Utils.semantic_sim(n1, n2, similarity_df):
+            if Utils.semantic_sim(n1, n2, similarity_df, semantic_threshold):
                 if is_special_pair(dag, n1, n2):
                     to_merge.append((n1, n2))
                 elif zero_cost(dag, n1, n2):
@@ -77,7 +77,7 @@ def zero_cost(G, n1, n2):
 
 
 
-def CaGreS(dag, k, similarity_df):
+def CaGreS(dag, k, similarity_df, semantic_threshold):
     """
     Implements Algorithm 1 (CaGreS) from the paper
     Inputs:
@@ -90,23 +90,22 @@ def CaGreS(dag, k, similarity_df):
     """
     if len(dag.nodes) <= k:
         return dag
-
     not_valid = set()
-    G, not_valid = low_cost_merges(dag, similarity_df, not_valid)
+    G, not_valid = low_cost_merges(dag, similarity_df, not_valid, semantic_threshold)
 
     cost_scores = {}
     while len(G.nodes) > k:
         G, not_valid, cost_scores = fast_merge_pair(G, dag, similarity_df,
-                                                     not_valid, cost_scores)
+                                                     not_valid, cost_scores,
+                                                     semantic_threshold)
         
-        # Could not summarize the DAG with given constraints
+        # Fallback, could not summarize the DAG with given constraints
         if not G:
             break
-
     return G
 
-def fast_merge_pair(G,dag,similarity_df,not_valid, cost_scores, verbos = False):
-    node_pairs = itertools.combinations(G.nodes(), 2)
+def fast_merge_pair(G, dag, similarity_df, not_valid, cost_scores, semantic_threshold, verbos = False):
+    node_pairs = sorted(list(itertools.combinations(sorted(G.nodes()), 2)))
     min_cost   = math.inf
     max_pair   = []
 
@@ -115,14 +114,14 @@ def fast_merge_pair(G,dag,similarity_df,not_valid, cost_scores, verbos = False):
         node2 = pair[1]
         if pair in not_valid:
             continue
-        valid = Utils.a_valid_pair(node1,node2,dag, similarity_df, G)
+        valid = Utils.a_valid_pair(node1,node2, similarity_df, G, semantic_threshold)
         if valid == False:
             not_valid.add(pair)
         else:
             if pair in cost_scores:
                 cost = cost_scores[pair]
             else:
-                cost = get_cost(node1, node2, G)
+                cost = get_cost(node1,node2,G)
                 cost_scores[pair] = cost
             if verbos:
                 print(pair,cost)
@@ -134,22 +133,18 @@ def fast_merge_pair(G,dag,similarity_df,not_valid, cost_scores, verbos = False):
                     min_cost = cost
                     max_pair = pair
     if len(max_pair) == 0:
-        node1 = node2 = None
-        print("Could not find a pair to merge; Merging a random valid pair!")
+        print("could not find a pair to merge, merging a random valid pair")
         for pair in node_pairs:
             if pair in not_valid:
                 continue
-            node1 = pair[0]
-            node2 = pair[1]
-            if Utils.a_valid_pair(node1, node2, dag):
+            if Utils.a_valid_pair(*pair, similarity_df, dag):
                 max_pair = pair
-                #TODO check for raising an exception or returning a message that we cannot merge since no valid pair for merge found
-                node1 = max_pair[0]
-                node2 = max_pair[1]
-
-        # Could not find a proper
-        if not node1 or not node2:
+            
+        # Fallback
+        if len(max_pair) == 0:
             return None, not_valid, cost_scores
+    node1 = max_pair[0]
+    node2 = max_pair[1]
 
     cost_scores = update_cost_scores(cost_scores, node1, node2, G)
     #print("choose to merge: ", node1,node2)
@@ -270,8 +265,8 @@ def get_grounded_dag_auxiliary(summary_dag,nodes):
     """
     G = summary_dag.copy()
     for n in summary_dag.nodes:
-        if ',\n' in n:
-            new_nodes = n.split(',\n')
+        if '_' in n:
+            new_nodes = n.split('_')
             node_to_split = n
 
             # Identify parents and children of the original node

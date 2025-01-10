@@ -24,16 +24,15 @@ def summarize_dag_button():
                 G = Utils.prepare_graph_format(original_dag)
                 Utils.convert_underscores_to_asterisks_inplace(df)
 
-                if thr == 0.0:
-                    summary_dag = algo.CaGreS(G, k_value, None)
-                    #summary_dag = algo.CaGreS(original_dag, k_value)
-                    #summary_dag = algo.get_grounded_dag(summary_dag)
-                else:
-                    summary_dag = algo.CaGreS(G, k_value, df)
+                summary_dag = algo.CaGreS(G, k_value, None if thr == 0.0 else df, thr)
+                #summary_dag = algo.CaGreS(original_dag, k_value)
+                #summary_dag = algo.get_grounded_dag(summary_dag) # DEBUG
+                #else:
+                    #summary_dag = algo.CaGreS(G, k_value, similarity_df=df)
                     #summary_dag = algo.CaGreS(original_dag, k_value, df, thr)
-                    #summary_dag = algo.get_grounded_dag(summary_dag) #DEBUG
+                    #summary_dag = algo.get_grounded_dag(summary_dag) # DEBUG
                 
-                if not summary_dag:
+                if summary_dag:
                     summary_dag = ensure_string_labels(summary_dag)
                     fix_nested_keys_in_edge_attrs(summary_dag)
 

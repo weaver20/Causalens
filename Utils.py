@@ -11,8 +11,6 @@ TOKEN_PATTERN = r"""
         (?P<COND>(?P<NODE>[A-Za-z0-9_]+)\s*(?P<OP>==|!=|<=|>=|<|>)\s*(?P<VAL>("[^"]*"|'[^']*'|[A-Za-z0-9_.]+)))
     """
 
-SEMANTIC_THRESHOLD = 0.0
-
 def ensure_string_labels(G):
     """
     Force every node in the DAG G to have a string name
@@ -205,10 +203,6 @@ def convert_ast_underscore_nodes(old_graph: nx.Graph) -> nx.Graph:
 
     return new_graph
 
-def prepare_df_format(df):
-    #TODO
-    pass
-
 def prepare_graph_format(G):
     """
     Builds a graph with a proper format for running the CaGreS summarization algorithm on.
@@ -222,32 +216,32 @@ def prepare_graph_format(G):
     return H
 
 
-############### Legacy ###############
+############### Graph Algo Utilities ###############
 
-def semantic_sim(n1, n2, similarity_df):
+def semantic_sim(n1, n2, similarity_df, semantic_threshold):
     if similarity_df is not None:
         sim = max(similarity_df[n1][n2], similarity_df[n2][n1])
-        if sim < SEMANTIC_THRESHOLD:
+        if sim < semantic_threshold:
             return False
     return True
 
-def a_valid_pair(node1, node2,dag, similarity_df, summary_dag):
-    if not check_semantic(node1, node2,similarity_df):
+def a_valid_pair(node1, node2, similarity_df, summary_dag, semantic_threshold):
+    if not check_semantic_for_cluster_nodes(node1, node2,similarity_df, semantic_threshold):
         return False
     G = summary_dag.copy()
     if summary_dag.has_edge(node1,node2):
-
         G.remove_edge(node1, node2)
-    elif summary_dag.has_edge(node2,node1):
 
+    elif summary_dag.has_edge(node2,node1):
         G.remove_edge(node2, node1)
+
     if nx.has_path(G, node1, node2):
-            length =  nx.shortest_path_length(G, node1, node2)
-            if length >= 2:
-            # paths = nx.all_simple_paths(summary_dag, node1, node2)
-            # path_exists = any(len(path) >= 3 for path in paths)
-            # if path_exists:
-                return False
+        length =  nx.shortest_path_length(G, node1, node2)
+        if length >= 2:
+        # paths = nx.all_simple_paths(summary_dag, node1, node2)
+        # path_exists = any(len(path) >= 3 for path in paths)
+        # if path_exists:
+            return False
     elif nx.has_path(G, node2, node1):
         length = nx.shortest_path_length(G, node2, node1)
         if length >= 2:
@@ -258,15 +252,16 @@ def a_valid_pair(node1, node2,dag, similarity_df, summary_dag):
                 return False
     return True
 
-def check_semantic(node1, node2, similarity_df):
-    nodes1 = node1.split(',\n')
-    nodes2 = node2.split(',\n')
-    print("check valid pair: ", nodes1,nodes2)
-    print(similarity_df)
+def check_semantic_for_cluster_nodes(node1, node2, similarity_df, semantic_threshold):
+    nodes1 = node1.split('_')
+    nodes2 = node2.split('_')
+    # print("check valid pair: ", nodes1,nodes2)
+    # print(similarity_df)
+    if similarity_df is None:
+        return True
     for n1 in nodes1:
         for n2 in nodes2:
-            if similarity_df is not None:
-                sim = max(similarity_df[n1][n2], similarity_df[n2][n1])
-                if sim < SEMANTIC_THRESHOLD:
-                    return False
+            sim = max(similarity_df[n1][n2], similarity_df[n2][n1])
+            if sim < semantic_threshold:
+                return False
     return True
