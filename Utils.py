@@ -104,6 +104,24 @@ def convert_df_columns_snake_to_pascal_inplace(df: pd.DataFrame):
 
     df.rename(columns=lambda col: to_pascal_case(col), inplace=True)
 
+def convert_nodes_pascal_to_snake_case_inplace(G: nx.Graph):
+    def is_snake_case(s: str) -> bool:
+
+        return bool(re.match(r'^[a-z0-9]+(?:_[a-z0-9]+)*$', s))
+
+    def pascal_to_snake(s: str) -> str:
+        # e.g., "QueryTemplate" -> "query_template"
+        return re.sub(r'(?<!^)(?=[A-Z])', '_', s).lower()
+
+    mapping = {}
+    for node in list(G.nodes()):
+        if isinstance(node, str) and not is_snake_case(node):
+            new_label = pascal_to_snake(node)
+            mapping[node] = new_label
+
+    if mapping:
+        nx.relabel_nodes(G, mapping, copy=False)
+
 def convert_nodes_snake_to_pascal_case(old_graph: nx.Graph) -> nx.Graph:
     def snake_to_pascal(name: str) -> str:
         """Convert a snake_case string to PascalCase."""

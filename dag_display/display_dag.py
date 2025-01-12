@@ -2,9 +2,8 @@ import streamlit as st
 import networkx as nx
 import streamlit.components.v1 as components
 from utils.graph_utils import to_pyvis_compatible
-from utils.visualization import visualize_dag_with_pyvis, check_for_nonstring_attribute_keys
-from utils.semantic_coloring import colorize_nodes_by_similarity
-from Utils import ensure_string_labels
+from utils.visualization import visualize_dag_with_pyvis
+from utils.semantic_coloring import colorize_nodes_by_similarity, colorize_cluster_nodes
 from dag_display.edge_edit import edit_edges_expander
 from dag_display.summarize_button import summarize_dag_button
 from utils.graph_utils import is_valid_dag
@@ -12,18 +11,20 @@ from Utils import convert_nodes_snake_to_pascal_case
 
 def display_dag_column(title: str, dag: nx.DiGraph, is_original: bool = True):
     st.subheader(title)
-    
+
     if not _check_dag(dag, title):
         return
-    
     dag = convert_nodes_snake_to_pascal_case(dag)
-    dag_str = ensure_string_labels(dag)
-    if not is_original:
-        check_for_nonstring_attribute_keys(dag_str)
+    color_map = _colorize_nodes(dag)
+    pyvis_dag = to_pyvis_compatible(dag)
 
-    color_map = _colorize_nodes(dag_str)
-    pyvis_dag = to_pyvis_compatible(dag_str)
-    html_str = visualize_dag_with_pyvis(pyvis_dag, color_map=color_map)
+    if is_original:
+        st.session_state.original_color_map = color_map
+        html_str = visualize_dag_with_pyvis(pyvis_dag, color_map=color_map)
+
+    else:
+        cluster_nodes_color_map = colorize_cluster_nodes(list(dag.nodes), st.session_state.original_color_map)
+        html_str = visualize_dag_with_pyvis(pyvis_dag, color_map=cluster_nodes_color_map)
 
     components.html(html_str, height=620, scrolling=False)
 

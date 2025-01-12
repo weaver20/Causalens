@@ -55,12 +55,15 @@ def sidebar_upload_or_generate_dag():
 
 
 def sidebar_configuration():
+    def reset_summary_dag():
+        st.session_state.summarized_dag = None
+
     if st.session_state.original_dag:
         st.session_state.size_constraint = st.number_input(
-            "Size Constraint:", min_value=1, value=5, max_value=50
+            "Size Constraint:", min_value=1, value=5, max_value=50, on_change=reset_summary_dag
         )
         st.session_state.semantic_threshold = st.slider(
-            "Semantic Similarity Threshold:", 0.0, 1.0, 0.5, 0.05
+            "Semantic Similarity Threshold:", 0.0, 1.0, 0.5, 0.05, on_change=reset_summary_dag
         )
     else:
         st.info("Please upload/generate a DAG to configure summarization.")

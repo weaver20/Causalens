@@ -3,7 +3,7 @@ import pandas as pd
 from algorithms import algo
 from utils.graph_utils import dict_of_dicts_to_numpy, fix_nested_keys_in_edge_attrs
 from utils.semantic_coloring import colorize_nodes_by_similarity
-from Utils import ensure_string_labels
+from Utils import ensure_string_labels, convert_nodes_pascal_to_snake_case_inplace
 import Utils
 
 def summarize_dag_button():
@@ -12,6 +12,7 @@ def summarize_dag_button():
             st.warning("Please upload/generate a DAG first.")
         else:
             with st.spinner("Summarizing DAG..."):
+                convert_nodes_pascal_to_snake_case_inplace(st.session_state.original_dag)
                 original_dag = st.session_state.original_dag
                 nodes_list = list(original_dag.nodes())
                 k_value = st.session_state.size_constraint
@@ -25,16 +26,13 @@ def summarize_dag_button():
                 Utils.convert_underscores_to_asterisks_inplace(df)
 
                 summary_dag = algo.CaGreS(G, k_value, None if thr == 0.0 else df, thr)
-                #summary_dag = algo.CaGreS(original_dag, k_value)
-                #summary_dag = algo.get_grounded_dag(summary_dag) # DEBUG
-                #else:
-                    #summary_dag = algo.CaGreS(G, k_value, similarity_df=df)
-                    #summary_dag = algo.CaGreS(original_dag, k_value, df, thr)
-                    #summary_dag = algo.get_grounded_dag(summary_dag) # DEBUG
                 
                 if summary_dag:
                     summary_dag = ensure_string_labels(summary_dag)
                     fix_nested_keys_in_edge_attrs(summary_dag)
+
+                    print("SUMMARIZED DAG NODES")
+                    print(list(summary_dag.nodes))
 
                     st.session_state.summarized_dag = Utils.convert_ast_underscore_nodes(summary_dag)
                     st.success("DAG summarized successfully!")

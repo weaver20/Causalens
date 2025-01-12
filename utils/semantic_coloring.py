@@ -71,17 +71,23 @@ def assign_colors_to_clusters(clusters):
     vary the shade among them. Return dict: node -> color.
     """
     base_colors = [
-        (0, 128, 0),   # green
-        (255, 69, 0),  # orangeRed
-        (30, 144, 255),# dodgerblue
-        (128, 0, 128), # purple
-        (220, 20, 60), # crimson
-        (255, 215, 0), # gold
-    ]
+            (255,   0,   0),   # Bright Red
+            (0,   255,   0),   # Bright Green
+            (0,     0, 255),   # Bright Blue
+            (255, 255,   0),   # Yellow
+            (255,   0, 255),   # Magenta
+            (0,   255, 255),   # Cyan
+            (255, 165,   0),   # Orange
+            (128,   0, 128),   # Purple
+            (128, 128,   0),   # Olive
+            (128,   0,   0),   # Maroon
+            (0,   128, 128),   # Teal
+            (128, 128, 128),   # Gray
+        ]
     color_map = {}
     for i, cluster_nodes in enumerate(clusters):
         base = base_colors[i % len(base_colors)]
-        step = 30
+        step = 10
         for idx2, node in enumerate(cluster_nodes):
             r = min(max(base[0] - step * idx2, 0), 255)
             g = min(max(base[1] - step * idx2, 0), 255)
@@ -100,3 +106,15 @@ def colorize_nodes_by_similarity(nodes):
     clusters = cluster_by_similarity(similarity, 0.7)
     color_map = assign_colors_to_clusters(clusters)
     return similarity, clusters, color_map
+
+def colorize_cluster_nodes(cluster_str_list, original_color_map):
+    if original_color_map is None:
+        return None
+    
+    summary_color_map = {}
+    for cluster_node in cluster_str_list:
+        node_list = list(cluster_node.split(',\n'))
+        chosen_node = random.choice(node_list)
+        chosen_color = original_color_map.get(chosen_node, "rgb(128,128,128)")
+        summary_color_map[cluster_node] = chosen_color
+    return summary_color_map
