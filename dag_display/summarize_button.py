@@ -31,9 +31,6 @@ def summarize_dag_button():
                     summary_dag = ensure_string_labels(summary_dag)
                     fix_nested_keys_in_edge_attrs(summary_dag)
 
-                    print("SUMMARIZED DAG NODES")
-                    print(list(summary_dag.nodes))
-
                     st.session_state.summarized_dag = Utils.convert_ast_underscore_nodes(summary_dag)
                     st.success("DAG summarized successfully!")
                     st.experimental_rerun()

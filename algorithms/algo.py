@@ -209,9 +209,10 @@ def get_cost(node1, node2,G):
 
     return cost
 
-def estimate_binary_treatment_effect(pkl_file, treatment_column, logic_condition, outcome_column, graph):
+async def estimate_binary_treatment_effect(df, treatment_column, logic_condition, outcome_column, graph:nx.DiGraph):
+    if not nx.has_path(graph, treatment_column, outcome_column):
+        return -1, -1
     # 1) Load the DataFrame and convert columns to PascalCase if needed
-    df = pd.read_pickle(pkl_file)
     Utils.convert_df_columns_snake_to_pascal_inplace(df)
 
     # 2) Back up the original values from the treatment column
@@ -252,7 +253,6 @@ def estimate_binary_treatment_effect(pkl_file, treatment_column, logic_condition
 
     # 7) Restore the original column values
     df[treatment_column] = original_values
-
     return causal_estimate_reg.value, causal_estimate_reg.test_stat_significance()['p_value']
 
 def get_grounded_dag(summary_dag):
@@ -265,8 +265,8 @@ def get_grounded_dag_auxiliary(summary_dag,nodes):
     """
     G = summary_dag.copy()
     for n in summary_dag.nodes:
-        if '_' in n:
-            new_nodes = n.split('_')
+        if ',\n' in n:
+            new_nodes = n.split(',\n')
             node_to_split = n
 
             # Identify parents and children of the original node

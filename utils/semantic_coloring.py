@@ -108,13 +108,20 @@ def colorize_nodes_by_similarity(nodes):
     return similarity, clusters, color_map
 
 def colorize_cluster_nodes(cluster_str_list, original_color_map):
+    def extract_last_number(s, idx):
+        inside = s[s.find('(') + 1 : s.find(')')]
+        parts = inside.split(',')
+        return int(parts[idx])
+
     if original_color_map is None:
         return None
     
     summary_color_map = {}
     for cluster_node in cluster_str_list:
         node_list = list(cluster_node.split(',\n'))
-        chosen_node = random.choice(node_list)
-        chosen_color = original_color_map.get(chosen_node, "rgb(128,128,128)")
+        avg_r = sum([extract_last_number(original_color_map[node], 0) for node in node_list]) // len(node_list)
+        avg_g = sum([extract_last_number(original_color_map[node], 1) for node in node_list]) // len(node_list)
+        avg_b = sum([extract_last_number(original_color_map[node], 2) for node in node_list]) // len(node_list)
+        chosen_color = f"rgb({avg_r},{avg_g},{avg_b})"
         summary_color_map[cluster_node] = chosen_color
     return summary_color_map

@@ -1,8 +1,12 @@
 import streamlit as st
 from dag_display.display_dag import display_dag_column
 
-def render_main_header():
-    st.title("✨ Causal DAG Summarization Tool")
+def render_main_header(logo_path: str, title_text: str):
+    col1, col2 = st.columns([1, 7])  # Adjust ratio as desired
+    with col1:
+        st.image("dag_logo.png", use_column_width="auto")  # Set an appropriate width
+    with col2:
+        st.markdown(f"<h1 style='margin-top: 0px;'>{title_text}</h1>", unsafe_allow_html=True)
     st.markdown("""
     ### Summarize a Causal DAG using the CaGreS Algorithm
 

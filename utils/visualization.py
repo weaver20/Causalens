@@ -53,6 +53,7 @@ def _lighten_color(rgb_str, factor=0.4):
     return f"rgb({nr},{ng},{nb})"
 
 def visualize_dag_with_pyvis(G: nx.DiGraph,
+                             original_dag,
                              color_map=None,
                              height="700px",
                              width="100%"):
@@ -63,11 +64,19 @@ def visualize_dag_with_pyvis(G: nx.DiGraph,
     try:
         logger.debug("Initializing PyVis network (directed).")
         net = Network(height=height, width=width, directed=True, notebook=False)
-        net.from_nx(G)
+        H = G.copy()
+        net.from_nx(H)
 
         # Style nodes
         for node in net.nodes:
             node["shape"] = "circle"
+            node_id = node["id"]
+
+            if not original_dag:
+                node_id = node_id.replace('\n', '</b>,\n<b>')
+            node["label"] = f"<b>{node_id}</b>"
+            
+
             if color_map and node["id"] in color_map:
                 base_color = color_map[node["id"]]
                 lighter = _lighten_color(base_color, factor=0.4)
@@ -91,9 +100,11 @@ def visualize_dag_with_pyvis(G: nx.DiGraph,
             node["borderWidth"] = 2
             node["borderWidthSelected"] = 4
             node["font"] = {
-                "size": 14,
+                "size": 20,
                 "color": "black",
                 "face": "arial",
+                "bold": "18px",
+                "multi": True,
             }
 
         # Style edges
@@ -110,6 +121,10 @@ def visualize_dag_with_pyvis(G: nx.DiGraph,
             damping=0.09,
             overlap=0
         )
+
+        #net.toggle_physics(False)
+        #net.set_edge_smooth('diagonalCross')
+        
 
         html_str = net.generate_html(notebook=False)
         return html_str

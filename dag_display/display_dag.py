@@ -20,11 +20,11 @@ def display_dag_column(title: str, dag: nx.DiGraph, is_original: bool = True):
 
     if is_original:
         st.session_state.original_color_map = color_map
-        html_str = visualize_dag_with_pyvis(pyvis_dag, color_map=color_map)
+        html_str = visualize_dag_with_pyvis(pyvis_dag, color_map=color_map, original_dag=is_original)
 
     else:
         cluster_nodes_color_map = colorize_cluster_nodes(list(dag.nodes), st.session_state.original_color_map)
-        html_str = visualize_dag_with_pyvis(pyvis_dag, color_map=cluster_nodes_color_map)
+        html_str = visualize_dag_with_pyvis(pyvis_dag, color_map=cluster_nodes_color_map, original_dag=is_original)
 
     components.html(html_str, height=620, scrolling=False)
 

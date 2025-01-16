@@ -1,4 +1,5 @@
 import streamlit as st
+import pandas as pd
 
 def initialize_session_state():
     if "original_dag" not in st.session_state:
@@ -11,3 +12,5 @@ def initialize_session_state():
         st.session_state.size_constraint = 5
     if "semantic_threshold" not in st.session_state:
         st.session_state.semantic_threshold = 0.5
+    if "df" not in st.session_state:
+        st.session_state.df = None
