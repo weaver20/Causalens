@@ -26,6 +26,8 @@ st.set_page_config(
     page_title="🔀 Causal DAG Summarization Tool",
     layout="wide"
 )
+
+# Cross platform compatability
 logo_path = os.path.abspath("dag_logo.png")
 
 # ---------------------------------------------------------------------

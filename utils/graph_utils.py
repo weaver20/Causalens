@@ -1,11 +1,15 @@
 import networkx as nx
+from pandas.api.types import is_numeric_dtype
+from pandas import to_numeric
 from networkx.drawing.nx_agraph import read_dot
+from algorithms.algo import discover_causal_dag
 import streamlit as st
 import logging
 import tempfile
 import os
 import numpy as np
 import networkx as nx
+import Utils
 
 logger = logging.getLogger(__name__)
 
@@ -52,27 +56,22 @@ def load_dag_from_file(file):
             os.remove(temp_filepath)
             logger.debug(f"Temporary DOT file {temp_filepath} deleted.")
 
-def generate_dag_algorithm():
-    """
-    Generates a simple DAG as a placeholder.
-    """
-    logger.debug("Generating a placeholder DAG (no dataset).")
-    G = nx.DiGraph()
-    G.add_nodes_from(["A", "B", "C"])
-    G.add_edges_from([("A", "B"), ("B", "C")])
-    logger.info(f"Placeholder DAG generated with nodes: {list(G.nodes)} and edges: {list(G.edges)}")
-    return G
 
-def generate_dag_from_dataset(dataset_bytes):
+def generate_dag_from_dataset(df, alpha):
     """
     Generate a DAG from the provided dataset (Not implemented yet).
     """
-    logger.debug("Generating DAG from dataset (placeholder).")
-    G = nx.DiGraph()
-    G.add_nodes_from(["DatasetNode1", "DatasetNode2"])
-    G.add_edge("DatasetNode1", "DatasetNode2")
-    logger.info(f"DAG from dataset generated with nodes: {list(G.nodes)} and edges: {list(G.edges)}")
+    df_copy = df.copy()
+    
+    for col in df_copy.columns:
+        if not is_numeric_dtype(df_copy[col]):
+            df_copy[col] = to_numeric(df_copy[col], errors='coerce')
+    
+    df_copy.dropna(inplace=True)
+    Utils.convert_df_columns_snake_to_pascal_inplace(df_copy)
+    G = discover_causal_dag(df_copy, alpha=alpha)
     return G
+
 
 def to_pyvis_compatible(G: nx.DiGraph) -> nx.DiGraph:
     """

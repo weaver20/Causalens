@@ -1,12 +1,12 @@
 import streamlit as st
+from streamlit_option_menu import option_menu
 import pandas as pd
-from asyncio import (create_task,
-                     InvalidStateError)
 import time
 import logging
 import Utils
 from algorithms import algo
-from utils.graph_utils import load_dag_from_file
+from utils.graph_utils import (load_dag_from_file,
+                               generate_dag_from_dataset)
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +19,34 @@ TOKEN_PATTERN = r"""
         (?P<COND>(?P<NODE>[A-Za-z0-9_]+)\s*(?P<OP>==|!=|<=|>=|<|>)\s*(?P<VAL>("[^"]*"|'[^']*'|[A-Za-z0-9_.]+)))
     """
 
+ALPHA_USAGE = "Significance level for PC discovery algorithm $s.t\ \\boldsymbol{\\alpha} \\propto \\textbf{|E|}$"
+SIZE_USAGE  = "Set a size constarint $S\ s.t\quad |V_s| \leq S$ where $G_s \equiv (V_s,E_s)$"
+SIMILARITY_USAGE = "Set a threshold $s.t\quad  \\forall u,v \\in G\quad u,v \\in G_s \\iff sim(u,v) \geq threshold$ "
+
+async def display_sidebar():
+    with st.sidebar:
+        # Create the option menu
+        selected = option_menu(
+            "Main Menu",
+            ["1. Upload/Generate DAG", "2. Configuration", "3. Compute Causal Effect"],
+            icons=["cloud-upload", "gear", "calculator"],
+            menu_icon="cast",
+            default_index=0
+        )
+
+        # Conditionally show expanders below the menu
+        if selected == "1. Upload/Generate DAG":
+            with st.expander("Upload or Generate DAG", expanded=True):
+                sidebar_upload_or_generate_dag()
+
+        if selected == "2. Configuration":
+            with st.expander("Configuration Parameters", expanded=True):
+                sidebar_configuration()
+        if selected == "3. Compute Causal Effect":
+            with st.expander("Compute Causal Effect", expanded=True):
+                await sidebar_compute_causal_effects()
+
+"""
 async def display_sidebar():
     with st.sidebar.expander("1. Upload or Generate DAG", expanded=True):
         sidebar_upload_or_generate_dag()
@@ -28,15 +56,39 @@ async def display_sidebar():
 
     with st.sidebar.expander("Compute Causal Effects"):
         await sidebar_compute_causal_effects()
+"""
 
+def reset_summary_dag():
+        st.session_state.summarized_dag = None
 
 def sidebar_upload_or_generate_dag():
+    # 1) Handling DAG input
     dag_file = st.file_uploader("Upload Causal DAG:", type=["dot"])
-    pkl_file  = st.file_uploader("Upload Dataset:", type=["pkl"])
-    
+    if dag_file:
+            loaded_dag = load_dag_from_file(dag_file)
+            if loaded_dag:
+                st.session_state.original_dag = loaded_dag
+                st.toast("DAG uploaded successfully!", icon='😍')
+
+    # 2) Handling dataset input
+    dataset_pkl_file  = st.file_uploader("Upload Dataset:", type=["pkl"])
+    if dataset_pkl_file:
+        try:
+            st.session_state.df = pd.read_pickle(dataset_pkl_file)
+            st.toast("Dataset uploaded successfully!", icon='😍')
+        except Exception as e:
+            st.session_state.df = None
+            st.error(f"Please upload a valid .pkl file for dataset!: {e}")
+            logger.exception("Exception occurred while loading DOT file: %s", e)
+            return
+        
+    # 3) Buttons
     c1, c2 = st.columns([1, 1])
     with c1:
         gen_btn = st.button("Generate DAG", help="Generates the DAG represented by the uploaded dataset")
+        st.session_state.alpha = st.slider("$\\alpha$:", min_value=0.01, value=0.5, max_value=0.99, step=0.01,
+                                            on_change=reset_summary_dag, help=ALPHA_USAGE) 
+
     with c2:
         refresh_btn = st.button("Refresh")
 
@@ -44,39 +96,22 @@ def sidebar_upload_or_generate_dag():
         st.session_state.original_dag = None
         st.session_state.summarized_dag = None
         st.session_state.df = None
-        st.info("DAG has been reset.")
-        st.experimental_rerun()
+        st.toast("DAG has been reset.")
+        time.sleep(0.7)
+        st.rerun()
 
-    if st.session_state.original_dag is None:
-        if dag_file:
-            loaded_dag = load_dag_from_file(dag_file)
-            if loaded_dag:
-                st.session_state.original_dag = loaded_dag
-                st.toast("DAG uploaded successfully!", icon='😍')
-
-        elif gen_btn:
-            #st.session_state.original_dag = generate_dag_algorithm()
-            st.warning("Generating DAG from a dataset has not yet been implemented")
-
-    if pkl_file:
-        try:
-            st.session_state.df = pd.read_pickle(pkl_file)
-            st.toast("Dataset uploaded successfully!", icon='😍')
-        except Exception as e:
-            st.error(f"Please upload a valid .pkl file for dataset!: {e}")
-            logger.exception("Exception occurred while loading DOT file: %s", e)
-            return
+    if gen_btn:
+        if st.session_state.df is not None:
+            st.session_state.original_dag = generate_dag_from_dataset(st.session_state.df, alpha=st.session_state.alpha)
+            st.toast("Generated Causal DAG successfully!")
 
 def sidebar_configuration():
-    def reset_summary_dag():
-        st.session_state.summarized_dag = None
-
     if st.session_state.original_dag:
         st.session_state.size_constraint = st.number_input(
-            "Size Constraint:", min_value=1, value=5, max_value=50, on_change=reset_summary_dag
+            "Size Constraint:", min_value=1, value=5, max_value=50, on_change=reset_summary_dag, help=SIZE_USAGE
         )
         st.session_state.semantic_threshold = st.slider(
-            "Semantic Similarity Threshold:", 0.0, 1.0, 0.5, 0.05, on_change=reset_summary_dag
+            "Semantic Similarity Threshold:", 0.0, 1.0, 0.5, 0.05, on_change=reset_summary_dag, help=SIMILARITY_USAGE
         )
     else:
         st.info("Please upload/generate a DAG to configure summarization.")

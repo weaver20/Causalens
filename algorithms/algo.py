@@ -1,4 +1,6 @@
 from dowhy import CausalModel
+import causallearn.utils.GraphUtils as GU
+from causallearn.search.ConstraintBased import PC
 import math
 import networkx as nx
 import itertools
@@ -293,6 +295,22 @@ def get_grounded_dag_auxiliary(summary_dag,nodes):
             G.remove_node(node_to_split)
     #show_dag(G,'grounded_dag')
     return G
+
+def discover_causal_dag(df: pd.DataFrame, alpha: float = 0.05, verbose: bool = False):
+    """Run PC on a DataFrame, keep only the fully-directed edges (color='black'), and return a DAG."""
+    causal_graph = PC.pc(df.values, alpha=alpha, verbose=verbose)
+    causal_graph.to_nx_graph() 
+    
+    graph_int = causal_graph.nx_graph
+    edges_to_remove = [(u, v) for u, v, d in graph_int.edges(data=True) if d.get('color') != 'b']
+    graph_int.remove_edges_from(edges_to_remove)
+
+    for _, _, data in graph_int.edges(data=True):
+        data['color'] = 'black'
+        
+    mapping = {i: df.columns[i] for i in graph_int.nodes()}
+    return nx.relabel_nodes(graph_int, mapping)
+
 
 def debug_print(graph, matching_rows, treatment_column, outcome_column, parsed_condition):
     print("===============")

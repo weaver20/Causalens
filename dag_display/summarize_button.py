@@ -33,7 +33,7 @@ def summarize_dag_button():
 
                     st.session_state.summarized_dag = Utils.convert_ast_underscore_nodes(summary_dag)
                     st.success("DAG summarized successfully!")
-                    st.experimental_rerun()
+                    st.rerun()
                 
                 else:
                     st.warning("Could not summarize DAG with given constraints!")

@@ -56,4 +56,4 @@ def edit_edges_expander(dag):
                     st.success("Removed edge successfully!")
                 st.session_state.original_dag = dag
                 st.session_state.summarized_dag = None
-                st.experimental_rerun()
+                st.rerun()
