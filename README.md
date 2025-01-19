@@ -185,7 +185,7 @@ If that fails with an error like `graphviz/cgraph.h: No such file or directory`,
      pip install pyvis
       ```
 
-### Docker 🐳
+### Docker
 1. Build the Docker image:
    ```bash
    docker build -t your-image-name .
