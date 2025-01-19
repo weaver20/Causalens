@@ -96,13 +96,14 @@ def convert_df_columns_snake_to_pascal_inplace(df: pd.DataFrame):
     In-place conversion of all column names from snake_case to PascalCase.
     e.g. 'result_cache_hit' -> 'ResultCacheHit'.
     """
-
+    df_copy = df.copy()
     def to_pascal_case(snake: str):
         # Split by underscores, capitalize each part, then join
         parts = snake.split("_")
         return "".join(word.capitalize() for word in parts)
 
-    df.rename(columns=lambda col: to_pascal_case(col), inplace=True)
+    df_copy.rename(columns=lambda col: to_pascal_case(col), inplace=True)
+    return df_copy
 
 def convert_nodes_pascal_to_snake_case_inplace(G: nx.Graph):
     def is_snake_case(s: str) -> bool:

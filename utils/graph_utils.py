@@ -72,7 +72,7 @@ def generate_dag_from_dataset(df, alpha):
             df_copy[col] = to_numeric(df_copy[col], errors='coerce')
     
     df_copy.dropna(inplace=True)
-    Utils.convert_df_columns_snake_to_pascal_inplace(df_copy)
+    df_copy = Utils.convert_df_columns_snake_to_pascal_inplace(df_copy)
     G = discover_causal_dag(df_copy, alpha=alpha)
     st.session_state.is_loading = False
     return G

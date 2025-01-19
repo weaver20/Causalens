@@ -215,7 +215,7 @@ async def estimate_binary_treatment_effect(df, treatment_column, logic_condition
     if not nx.has_path(graph, treatment_column, outcome_column):
         return -1, -1
     # 1) Load the DataFrame and convert columns to PascalCase if needed
-    Utils.convert_df_columns_snake_to_pascal_inplace(df)
+    df = Utils.convert_df_columns_snake_to_pascal_inplace(df)
 
     # 2) Back up the original values from the treatment column
     original_values = df[treatment_column].copy()
@@ -255,7 +255,7 @@ async def estimate_binary_treatment_effect(df, treatment_column, logic_condition
 
     # 7) Restore the original column values
     df[treatment_column] = original_values
-    return causal_estimate_reg.value, causal_estimate_reg.test_stat_significance()['p_value']
+    return causal_estimate_reg, causal_estimate_reg.test_stat_significance()['p_value']
 
 def get_grounded_dag(summary_dag):
     nodes = list(nx.topological_sort(summary_dag))
