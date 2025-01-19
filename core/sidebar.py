@@ -1,5 +1,6 @@
 import streamlit as st
 from streamlit_option_menu import option_menu
+import threading
 import pandas as pd
 import time
 import logging
@@ -22,6 +23,7 @@ TOKEN_PATTERN = r"""
 ALPHA_USAGE = "Significance level for PC discovery algorithm $s.t\ \\boldsymbol{\\alpha} \\propto \\textbf{|E|}$"
 SIZE_USAGE  = "Set a size constarint $S\ s.t\quad |V_s| \leq S$ where $G_s \equiv (V_s,E_s)$"
 SIMILARITY_USAGE = "Set a threshold $s.t\quad  \\forall u,v \\in G\quad u,v \\in G_s \\iff sim(u,v) \geq threshold$ "
+GEN_USAGE = "Generates the DAG represented by the uploaded dataset"
 
 async def display_sidebar():
     with st.sidebar:
@@ -63,13 +65,8 @@ def reset_summary_dag():
 
 def sidebar_upload_or_generate_dag():
     # 1) Handling DAG input
-    dag_file = st.file_uploader("Upload Causal DAG:", type=["dot"])
-    if dag_file:
-            loaded_dag = load_dag_from_file(dag_file)
-            if loaded_dag:
-                st.session_state.original_dag = loaded_dag
-                st.toast("DAG uploaded successfully!", icon='😍')
-
+    st.session_state.dag_file = st.file_uploader("Upload Causal DAG:", type=["dot"])
+    
     # 2) Handling dataset input
     dataset_pkl_file  = st.file_uploader("Upload Dataset:", type=["pkl"])
     if dataset_pkl_file:
@@ -85,25 +82,38 @@ def sidebar_upload_or_generate_dag():
     # 3) Buttons
     c1, c2 = st.columns([1, 1])
     with c1:
-        gen_btn = st.button("Generate DAG", help="Generates the DAG represented by the uploaded dataset")
-        st.session_state.alpha = st.slider("$\\alpha$:", min_value=0.01, value=0.5, max_value=0.99, step=0.01,
-                                            on_change=reset_summary_dag, help=ALPHA_USAGE) 
+        st.session_state.generation_type = st.radio(
+            "Genrate DAG From:",
+            ["dataset", ".dot file"],
+            horizontal=True,
+            help="Choose which input should be used for DAG generation"
+        )
+
+        if st.button("Refresh"):
+            st.session_state.original_dag = None
+            st.session_state.summarized_dag = None
+            st.session_state.df = None
+            st.session_state.dag_file = None
+            st.toast("DAG has been reset.")
+            time.sleep(0.7)
+            st.rerun()
+        
 
     with c2:
-        refresh_btn = st.button("Refresh")
+        gen_btn = st.button("Generate DAG", help=GEN_USAGE)
+        st.session_state.alpha = st.slider("$\\alpha$:", min_value=0.01, value=0.5, max_value=0.99, step=0.01,
+                                            on_change=reset_summary_dag, help=ALPHA_USAGE) 
+        if gen_btn:
+            if st.session_state.generation_type == "dataset" and st.session_state.df is None:
+                st.toast("Please upload a .PKL dataset before choosing this option.")
+                return
+            elif st.session_state.generation_type == ".dot file" and st.session_state.dag_file is None:
+                st.toast("Please upload a .DOT file before choosing this option.")
+                return
+            else:
+                st.session_state.generate_button = True
+                st.rerun()
 
-    if refresh_btn:
-        st.session_state.original_dag = None
-        st.session_state.summarized_dag = None
-        st.session_state.df = None
-        st.toast("DAG has been reset.")
-        time.sleep(0.7)
-        st.rerun()
-
-    if gen_btn:
-        if st.session_state.df is not None:
-            st.session_state.original_dag = generate_dag_from_dataset(st.session_state.df, alpha=st.session_state.alpha)
-            st.toast("Generated Causal DAG successfully!")
 
 def sidebar_configuration():
     if st.session_state.original_dag:

@@ -1,6 +1,8 @@
 import networkx as nx
 from pandas.api.types import is_numeric_dtype
 from pandas import to_numeric
+from algorithms.algo import CaGreS
+import pandas as pd
 from networkx.drawing.nx_agraph import read_dot
 from algorithms.algo import discover_causal_dag
 import streamlit as st
@@ -10,6 +12,8 @@ import os
 import numpy as np
 import networkx as nx
 import Utils
+from Utils import ensure_string_labels, convert_nodes_pascal_to_snake_case_inplace
+from utils.semantic_coloring import colorize_nodes_by_similarity
 
 logger = logging.getLogger(__name__)
 
@@ -41,13 +45,13 @@ def load_dag_from_file(file):
         if not is_valid_dag(DG):
             st.warning("The uploaded graph is not a valid Directed Acyclic Graph (DAG). Visualization may not be accurate.")
             logger.warning("Uploaded graph is not a valid DAG.")
+            return None
         else:
             logger.info("Uploaded graph is a valid DAG.")
 
         return DG
 
     except Exception as e:
-        st.error(f"An error occurred while loading the DOT file: {e}")
         logger.exception("Exception occurred while loading DOT file: %s", e)
         return None
 
@@ -59,7 +63,7 @@ def load_dag_from_file(file):
 
 def generate_dag_from_dataset(df, alpha):
     """
-    Generate a DAG from the provided dataset (Not implemented yet).
+    Generate a DAG from the provided dataset.
     """
     df_copy = df.copy()
     
@@ -70,7 +74,35 @@ def generate_dag_from_dataset(df, alpha):
     df_copy.dropna(inplace=True)
     Utils.convert_df_columns_snake_to_pascal_inplace(df_copy)
     G = discover_causal_dag(df_copy, alpha=alpha)
+    st.session_state.is_loading = False
     return G
+
+def summarize_dag():
+    """
+    Summarizes the given original DAG using CaGreS algorithm.
+    """
+    convert_nodes_pascal_to_snake_case_inplace(st.session_state.original_dag)
+    original_dag = st.session_state.original_dag
+    nodes_list = list(original_dag.nodes())
+    k_value = st.session_state.size_constraint
+    thr = st.session_state.semantic_threshold
+
+    mat = dict_of_dicts_to_numpy(colorize_nodes_by_similarity(nodes_list)[0])
+    df = pd.DataFrame(mat, index=nodes_list, columns=nodes_list)
+
+    # Ensuring graph and df match the algorithm input asssumptions
+    G = Utils.prepare_graph_format(original_dag)
+    Utils.convert_underscores_to_asterisks_inplace(df)
+
+    summary_dag = CaGreS(G, k_value, None if thr == 0.0 else df, thr)
+    
+    if summary_dag:
+        summary_dag = ensure_string_labels(summary_dag)
+        fix_nested_keys_in_edge_attrs(summary_dag)
+
+        G = Utils.convert_ast_underscore_nodes(summary_dag)
+        return G
+    return None
 
 
 def to_pyvis_compatible(G: nx.DiGraph) -> nx.DiGraph:

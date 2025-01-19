@@ -5,7 +5,6 @@ from utils.graph_utils import to_pyvis_compatible
 from utils.visualization import visualize_dag_with_pyvis
 from utils.semantic_coloring import colorize_nodes_by_similarity, colorize_cluster_nodes
 from dag_display.edge_edit import edit_edges_expander
-from dag_display.summarize_button import summarize_dag_button
 from utils.graph_utils import is_valid_dag
 from Utils import convert_nodes_snake_to_pascal_case
 
@@ -30,7 +29,10 @@ def display_dag_column(title: str, dag: nx.DiGraph, is_original: bool = True):
 
     if is_original:
         edit_edges_expander(dag)
-        summarize_dag_button()
+
+        if st.button("Summarize Causal DAG", key="summarize_button_left_col"):
+            st.session_state.summarize_button = True
+            st.rerun()
 
 def _check_dag(dag, title) -> bool:
     if dag is None:

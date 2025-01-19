@@ -1,5 +1,10 @@
 import streamlit as st
+import time
+from streamlit_lottie import st_lottie_spinner
 from dag_display.display_dag import display_dag_column
+from utils.graph_utils import (load_dag_from_file,
+                               generate_dag_from_dataset,
+                               summarize_dag)
 
 def render_main_header(logo_path: str, title_text: str):
     col1, col2 = st.columns([1, 7])  # Adjust ratio as desired
@@ -20,6 +25,28 @@ def render_main_header(logo_path: str, title_text: str):
 def layout_main_columns():
     c1, c2 = st.columns([1, 1])
     with c1:
-        display_dag_column("Original Causal DAG", st.session_state.original_dag, is_original=True)
+        if st.session_state.generate_button:
+            with st_lottie_spinner(st.session_state.loading_animation, height=500, quality='high'):
+                if st.session_state.generation_type == "dataset":
+                    st.session_state.original_dag = generate_dag_from_dataset(st.session_state.df, alpha=st.session_state.alpha)
+                else:
+                    time.sleep(4)
+                    st.session_state.original_dag = load_dag_from_file(st.session_state.dag_file)
+                st.toast("Generated Causal DAG successfully!")
+                st.session_state.generate_button = False
+                st.rerun()
+        else:
+            display_dag_column("Original Causal DAG", st.session_state.original_dag, is_original=True)
+
     with c2:
-        display_dag_column("Summarized Causal DAG", st.session_state.summarized_dag, is_original=False)
+        if st.session_state.summarize_button:
+            with st_lottie_spinner(st.session_state.loading_animation, height=500, quality='high'):
+                st.session_state.summarized_dag = summarize_dag()
+                if st.session_state.summarized_dag:
+                    st.toast("Summarized DAG successfully!")
+                    st.session_state.summarize_button = False
+                    time.sleep(2)
+                    st.rerun()
+            st.warning("Could not summarize DAG with given constraints!")
+        else:
+            display_dag_column("Summarized Causal DAG", st.session_state.summarized_dag, is_original=False)
