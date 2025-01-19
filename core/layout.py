@@ -11,7 +11,22 @@ def render_main_header(logo_path: str, title_text: str):
     with col1:
         st.image(logo_path, use_container_width="auto")  # Set an appropriate width
     with col2:
-        st.markdown(f"<h1 style='margin-top: 0px;'>{title_text}</h1>", unsafe_allow_html=True)
+        st.markdown(f"""
+    <h1 style="
+        margin-top: 0px;
+        margin-bottom: 20px;
+        font-family: 'Helvetica', sans-serif;
+        font-size: 48px;
+        font-weight: bold;
+        background: linear-gradient(to right, #16BFFD, #CB3066);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.2);
+        letter-spacing: 1px;
+    ">
+        {title_text}
+    </h1>
+    """, unsafe_allow_html=True)
     st.markdown("""
     ### Summarize a Causal DAG using the CaGreS Algorithm
 

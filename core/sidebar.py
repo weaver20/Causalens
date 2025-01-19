@@ -1,13 +1,10 @@
 import streamlit as st
 from streamlit_option_menu import option_menu
-import threading
 import pandas as pd
 import time
 import logging
 import Utils
 from algorithms import algo
-from utils.graph_utils import (load_dag_from_file,
-                               generate_dag_from_dataset)
 
 logger = logging.getLogger(__name__)
 
@@ -47,18 +44,6 @@ async def display_sidebar():
         if selected == "3. Compute Causal Effect":
             with st.expander("Compute Causal Effect", expanded=True):
                 await sidebar_compute_causal_effects()
-
-"""
-async def display_sidebar():
-    with st.sidebar.expander("1. Upload or Generate DAG", expanded=True):
-        sidebar_upload_or_generate_dag()
-
-    with st.sidebar.expander("2. Configuration Parameters"):
-        sidebar_configuration()
-
-    with st.sidebar.expander("Compute Causal Effects"):
-        await sidebar_compute_causal_effects()
-"""
 
 def reset_summary_dag():
         st.session_state.summarized_dag = None
