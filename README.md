@@ -41,10 +41,10 @@ These libraries and frameworks together power the CaGreS demo tool, ensuring a s
 <h2 id="started">🚀 Getting started</h2>
 
 Choose your platform of installation:
-- [Windows](#windows)
-- [Linux](#linux)
-- [macOS](#macos)
-- [Docker](#docker-🐳)
+- [Windows](#windows) ![Windows](https://img.icons8.com/fluency/28/windows-11.png)
+- [Linux](#linux) ![Linux](https://img.icons8.com/color/28/linux--v1.png)
+- [macOS](#macos) ![Apple](https://img.icons8.com/office/28/mac-os.png)
+- [Docker](#docker) ![Docker](https://img.icons8.com/fluency/28/docker.png)
 
 <h3>Prerequisites</h3>
 
@@ -64,62 +64,68 @@ This downloads the code and moves you into the project directory.
 <h3>Starting</h3>
 
 ### Windows
-1. Open Windows PowerShell.
+1. **Open Windows `PowerShell`**.
+   
 2. **Create a virtual environment** (named `venv` for example):
    ```bash
    python -m venv venv
    ```
+   
 3. **Activate** the virtual environment:
    ```bash
    venv\Scripts\activate
    ```
+   
 4. **Installing System-Level Graphviz:** you must install the system-level Graphviz **with development headers.**
     * **Download the Graphviz installer for Windows**  [from the official Graphviz website.](https://graphviz.org/)
-    * **Run the installer **and select a **Complete** or **Custom** installation that includes the **C headers** (development libraries).
+    * **Run the installer** and select a **Complete** or **Custom** installation that includes the **C headers** (development libraries).
     * By default, it installs to something like: `C:\Program Files\Graphviz`, Inside this folder, you should see:
         * `bin\` (contains `dot.exe`, etc.)
         * `include\graphviz` (should contain `cgraph.h`)
         * `lib\` or `lib64\` (contains `.lib` files for linking)
-    * **Add Graphviz** `bin` folder to **PATH** (ensure to restart PowerShell afterwards).
-5. Once **Graphviz (with headers)** is installed and on your system, you can install PyGraphviz:
+    * **Add Graphviz** `bin` folder to **PATH** (ensure to restart the `PowerShell` terminal afterwards).
+      
+5. **Once **Graphviz (with headers)** is installed and on your system, you can install PyGraphviz:**
    ```bash
    pip install pygraphviz
    ```
-If that fails with an error like `graphviz/cgraph.h: No such file or directory`, it means the compiler can’t find the headers. Try the following:
+   * If that fails with an error like `graphviz/cgraph.h: No such file or directory`, it means the compiler can’t find the headers. Try the following:
+   
    * Add Graphviz’s `include` and `lib` folders to your environment variables so MSVC can see them:
-   ```powershell
-   $Env:INCLUDE = "C:\Program Files\Graphviz\include;$Env:INCLUDE"
-   $Env:LIB = "C:\Program Files\Graphviz\lib;$Env:LIB"
-   ```
+      ```powershell
+      $Env:INCLUDE = "C:\Program Files\Graphviz\include;$Env:INCLUDE"
+      $Env:LIB = "C:\Program Files\Graphviz\lib;$Env:LIB"
+      ```
    * **Re-install** with no cache (to force a rebuild):
-   ```bash
-   pip install --no-cache-dir --force-reinstall pygraphviz
-   ```
+      ```bash
+      pip install --no-cache-dir --force-reinstall pygraphviz
+      ```
    * If it still can’t find the headers, you can specify them directly:
-   ```bash
-   pip install --no-cache-dir pygraphviz \
-    --global-option=build_ext \
-    --global-option="-IC:\Program Files\Graphviz\include" \
-    --global-option="-LC:\Program Files\Graphviz\lib"
-   ```
-   * If installation succeeds, open a Python shell and execute:
-   ```python
-   import pygraphviz
-   print(pygraphviz.__version__)
-   ```
-   No error means it’s successfully installed and usable.
+      ```bash
+      pip install --no-cache-dir pygraphviz \
+       --global-option=build_ext \
+       --global-option="-IC:\Program Files\Graphviz\include" \
+       --global-option="-LC:\Program Files\Graphviz\lib"
+      ```
+   * If installation succeeds, open a `Python` shell and execute:
+      ```python
+      import pygraphviz
+      print(pygraphviz.__version__)
+      ```
+   Check the output, if there are no errors it means `pygraphviz` has been successfully installed and is now usable.
 
-6.  Check Python version, then install dependencies:
+6. **Check Python version, then install dependencies:**
    ```bash
    pip install -r requirements.txt
    ```
-7.  Start the streamlit app:
+   
+7. **Start the streamlit app:**
    ```bash
    python -m streamlit run app.py --server.port 8081 --server.address localhost
    ```
 
 ### Linux 
-1.  Open a terminal and install Python if needed:
+1. **Open a terminal and install Python if needed:**
    ```bash
    sudo apt-get install python3-pip
    ```
@@ -134,41 +140,48 @@ If that fails with an error like `graphviz/cgraph.h: No such file or directory`,
       sudo dnf install graphviz graphviz-devel
       ```
       This ensures both the runtime `(dot, etc.)` and the development headers (like `cgraph.h`).
-   * Install PyGraphviz:
-      ```bash
-      pip install pygraphviz
-      ```
-      * If it still can’t find headers, you may need to manually specify:
-         ```bash
-         pip install pygraphviz --no-cache-dir \
-          --global-option=build_ext \
-          --global-option="-I/usr/include/graphviz" \
-          --global-option="-L/usr/lib"
-         ```
-      Adjust paths for your distro if needed.
+3. **Install PyGraphviz:**
+   ```bash
+   pip install pygraphviz
+   ```
+   * If it still can’t find headers, you may need to manually specify:
+     ```bash
+     pip install pygraphviz --no-cache-dir \
+     --global-option=build_ext \
+     --global-option="-I/usr/include/graphviz" \
+     --global-option="-L/usr/lib"
+     ```
+     Adjust paths for your distro if needed.
+     
 3. **Install PyVis:**
-  ```bash
+   ```bash
     pip install pyvis
    ```
-4.  **Install dependencies:**
+4. **Install dependencies:**
    ```bash
    pip install -r requirements.txt
    ```
+5. **Start the streamlit app:**
+   ```bash
+   python -m streamlit run app.py --server.port 8081 --server.address localhost
+   ```
+
 ### macOS
 1. **Install Homebrew** (if you don’t have it yet):
    ```bash
    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
    ```
-2. ** Install Graohviz:**
+2. **Install Graphhviz:**
    ```bash
    brew install graphviz
    ```
    This includes the development headers by default.
-3. **Install PyGraphviz** (if needed):
+   
+4. **Install PyGraphviz** (if needed):
    ```bash
    pip install pygraphviz
    ```
-   * If you encounter missing header errors, ensure you have Xcode Command Line Tools installed:
+   * If you encounter missing header errors, ensure you have `Xcode Command Line Tools` installed:
       ```bash
       xcode-select --install
       ```
@@ -180,21 +193,37 @@ If that fails with an error like `graphviz/cgraph.h: No such file or directory`,
        --global-option="-L/usr/local/lib"
       ```
       (Adjust paths if `brew` installed Graphviz elsewhere—often under `/opt/homebrew` on Apple Silicon or `/usr/local` on Intel.)
-4. **Install PyVis:**
-      ```bash
-     pip install pyvis
-      ```
+     
+5. **Install PyVis:**
+   ```bash
+   pip install pyvis
+   ```
+   
+6. **Install dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+   
+7. **Start the streamlit app:**
+   ```bash
+   python -m streamlit run app.py --server.port 8081 --server.address localhost
+   ```
 
 ### Docker
 1. Build the Docker image:
    ```bash
    docker build -t your-image-name .
    ```
+   
 2. Run the container:
    ```bash
    docker run -p 8501:8501 your-image-name
    ```
-3. Access it at `http://localhost:8501` or at `http://0.0.0.0:8501`
+   
+3. Access it through the browser at `http://localhost:8501` or at `http://0.0.0.0:8501`.
+
+* The `Dockerfile` is configured to expose `PORT 8501` as an input to the container in order to communicate with the Streamlite app, but feel free to change it according to your desire.
+* Running the app on a container prevents changes to reflect instantly (in case you test any changes within the source code on your local repository). In case you would like to test changes you will need to re-build the `Docker` image and re-run the `Docker` container.
 
 <h2 id="contribute">📫 Contribute</h2>
 
