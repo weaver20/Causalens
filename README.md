@@ -223,7 +223,7 @@ This downloads the code and moves you into the project directory.
 3. Access it through the browser at `http://localhost:8501` or at `http://0.0.0.0:8501`.
 
 * The `Dockerfile` is configured to expose `PORT 8501` as an input to the container in order to communicate with the Streamlit application, but feel free to change it according to your desire.
-* Running the app on a container prevents changes to reflect instantly (in case you test any changes within the source code on your local repository). In case you would like to test changes you will need to re-build the `Docker` image and re-run the `Docker` container.
+* Running the app on a container prevents changes to reflect instantly (in case you test any changes within the source code on your local repository). In case you would like to test changes you will be required to re-build the `Docker` image and re-run the `Docker` container.
 
 <h2 id="contribute">📫 Contribute</h2>
 
