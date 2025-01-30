@@ -1,5 +1,6 @@
 import streamlit as st
 from streamlit_option_menu import option_menu
+from annotated_text import annotated_text
 import pandas as pd
 import time
 import logging
@@ -113,6 +114,20 @@ def sidebar_configuration():
 
 
 async def sidebar_compute_causal_effects():
+    async def compute(graph):
+        df = st.session_state.df
+        estimate_res = await algo.estimate_binary_treatment_effect(df, treatment_node, condition_input, outcome_node, graph)
+                
+        time.sleep(1)
+        if estimate_res == (-1, -1):
+            st.error(f"There is no direct path between {treatment_node} to {outcome_node}")
+            return
+        
+        mean_val = str(estimate_res[1])
+        stat_significance = True if estimate_res[1] < 0.05 else False
+        return mean_val, stat_significance
+    
+
     # 1) Check DAG and dataframe are present
     if st.session_state.original_dag is None:
         st.info("No original DAG for computing ATE.")
@@ -123,22 +138,18 @@ async def sidebar_compute_causal_effects():
         return
 
     # 2) Graph Selection
-    graph_options = ["Original DAG"]
+    G = st.session_state.original_dag
+    graphs = [G]
     if st.session_state.summarized_dag is not None:
-        graph_options.append("Summarized DAG")
-
-    chosen_graph_label = st.selectbox("Select Graph:", graph_options, index=0)
-
-    if chosen_graph_label == "Original DAG":
-        G = st.session_state.original_dag
-    else:
         summary_dag = st.session_state.summarized_dag
-        G = algo.get_grounded_dag(summary_dag)
-    G = Utils.convert_nodes_snake_to_pascal_case(G)
+        H = algo.get_grounded_dag(summary_dag)
+        H = Utils.convert_nodes_snake_to_pascal_case(H)
+        graphs.append(H)
+        
 
     # 3) Treatment
     nodes_list = list(G.nodes)
-    treatment_node = st.selectbox("Select Treatment Node:", nodes_list)
+    treatment_node = st.selectbox("Select Treatment (Binary):", nodes_list)
 
     condition_input = st.text_input(
         "Enter logic condition for the Treatment Node:",
@@ -149,8 +160,9 @@ async def sidebar_compute_causal_effects():
     # 4) Outcome Selection
     outcome_node = st.selectbox("Select Outcome:", nodes_list)
 
+
     # 5) Compute Button
-    if st.button(":gray[$Compute ATE$]", type='primary'):
+    if st.button("Compute ATE", type='primary'):
         condition_res = Utils.is_valid_condition(condition_input, treatment_node)[0]
         if not condition_res:
             st.error(
@@ -159,20 +171,21 @@ async def sidebar_compute_causal_effects():
         else:
             progress_text = "Calculating ATE. Please wait..."
             with st.spinner(progress_text): 
-                df = st.session_state.df
-                estimate_res = await algo.estimate_binary_treatment_effect(df, 
-                        treatment_node, 
-                        condition_input, 
-                        outcome_node, 
-                        G)
-                
-                time.sleep(1)
-                if estimate_res == (-1, -1):
-                    st.error(f"There is no direct path between {treatment_node} to {outcome_node}")
-                    return
-                
-                mean_val = str(estimate_res[1])
-                stat_significance = "YES" if estimate_res[1] < 0.05 else "NO"
-                
+                # original graph
+                annotated_text(("Results:", "Original DAG"))
+                mean_val, stat_significance = compute(graph=graphs[0])
                 st.success(f"Mean Value: {mean_val}")
-                st.success(f"Statistic Significance: {stat_significance}")
+                if stat_significance:
+                    st.success(f"$p-value < 0.05$")
+                else:
+                    st.error(f"$p-value \geq 0.05$")
+                
+                # summary graph
+                if len(graphs) > 1:
+                    annotated_text(("Results:", "Original DAG"))
+                    mean_val, stat_significance = compute(graph=graphs[1])
+                    st.success(f"Mean Value: {mean_val}")
+                    if stat_significance:
+                        st.success(f"$p-value < 0.05$")
+                    else:
+                        st.error(f"$p-value \geq 0.05$")

@@ -8,4 +8,4 @@ streamlit==1.41.0
 streamlit-option-menu
 dowhy
 streamlit_lottie
-streamlit_option_menu
+st-annotated-text
