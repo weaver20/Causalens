@@ -123,7 +123,7 @@ async def sidebar_compute_causal_effects():
             st.error(f"There is no direct path between {treatment_node} to {outcome_node}")
             return None, None
         
-        mean_val = estimate_res[1]
+        mean_val = estimate_res[0]
         stat_significance = True if estimate_res[1] < 0.05 else False
         return mean_val, stat_significance
     
