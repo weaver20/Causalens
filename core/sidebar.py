@@ -114,14 +114,14 @@ def sidebar_configuration():
 
 
 async def sidebar_compute_causal_effects():
-    async def compute(graph):
+    def compute(graph):
         df = st.session_state.df
-        estimate_res = await algo.estimate_binary_treatment_effect(df, treatment_node, condition_input, outcome_node, graph)
+        estimate_res = algo.estimate_binary_treatment_effect(df, treatment_node, condition_input, outcome_node, graph)
                 
         time.sleep(1)
         if estimate_res == (-1, -1):
             st.error(f"There is no direct path between {treatment_node} to {outcome_node}")
-            return
+            return None, None
         
         mean_val = str(estimate_res[1])
         stat_significance = True if estimate_res[1] < 0.05 else False
@@ -175,18 +175,20 @@ async def sidebar_compute_causal_effects():
                 # original graph
                 annotated_text(("Results:", "Original DAG"))
                 mean_val, stat_significance = compute(graph=graphs[0])
-                st.success(f"Mean Value: {mean_val}")
-                if stat_significance:
-                    st.success(f"$p-value < 0.05$")
-                else:
-                    st.error(f"$p-value \geq 0.05$")
-                
-                # summary graph
-                if len(graphs) > 1:
-                    annotated_text(("Results:", "Summarized DAG"))
-                    mean_val, stat_significance = compute(graph=graphs[1])
+                if mean_val:
                     st.success(f"Mean Value: {mean_val}")
                     if stat_significance:
                         st.success(f"$p-value < 0.05$")
                     else:
                         st.error(f"$p-value \geq 0.05$")
+                
+                # summary graph
+                if len(graphs) > 1:
+                    annotated_text(("Results:", "Summarized DAG"))
+                    mean_val, stat_significance = compute(graph=graphs[1])
+                    if mean_val:
+                        st.success(f"Mean Value: {mean_val}")
+                        if stat_significance:
+                            st.success(f"$p-value < 0.05$")
+                        else:
+                            st.error(f"$p-value \geq 0.05$")
