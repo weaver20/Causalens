@@ -139,6 +139,7 @@ async def sidebar_compute_causal_effects():
 
     # 2) Graph Selection
     G = st.session_state.original_dag
+    G = Utils.convert_nodes_snake_to_pascal_case(G)
     graphs = [G]
     if st.session_state.summarized_dag is not None:
         summary_dag = st.session_state.summarized_dag
@@ -182,7 +183,7 @@ async def sidebar_compute_causal_effects():
                 
                 # summary graph
                 if len(graphs) > 1:
-                    annotated_text(("Results:", "Original DAG"))
+                    annotated_text(("Results:", "Summarized DAG"))
                     mean_val, stat_significance = compute(graph=graphs[1])
                     st.success(f"Mean Value: {mean_val}")
                     if stat_significance:
