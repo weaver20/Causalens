@@ -211,7 +211,7 @@ def get_cost(node1, node2,G):
 
     return cost
 
-async def estimate_binary_treatment_effect(df, treatment_column, logic_condition, outcome_column, graph:nx.DiGraph):
+def estimate_binary_treatment_effect(df, treatment_column, logic_condition, outcome_column, graph:nx.DiGraph):
     if not nx.has_path(graph, treatment_column, outcome_column):
         return -1, -1
     # 1) Load the DataFrame and convert columns to PascalCase if needed
